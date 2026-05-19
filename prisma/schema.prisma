@@ -1,0 +1,132 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── ENUMS ─────────────────────────────────────────────────────────────────
+
+enum UserRole {
+  BUYER
+  SELLER
+  ADMIN
+}
+
+enum BusinessType {
+  SELF_EMPLOYED
+  IP
+  COMPANY
+}
+
+enum ServiceStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum OrderStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  DISPUTED
+}
+
+// ─── USERS ─────────────────────────────────────────────────────────────────
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  passwordHash  String
+  phone         String?
+  role          UserRole  @default(BUYER)
+  avatarUrl     String?
+
+  // INN verification
+  inn          String?
+  innVerified  Boolean      @default(false)
+  businessType BusinessType?
+  companyName  String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  services Service[]
+  orders   Order[]   @relation("BuyerOrders")
+  reviews  Review[]  @relation("ReviewAuthor")
+}
+
+// ─── CATEGORIES ────────────────────────────────────────────────────────────
+
+model Category {
+  id       String    @id @default(cuid())
+  slug     String    @unique
+  name     String
+  icon     String?
+  services Service[]
+}
+
+// ─── SERVICES ──────────────────────────────────────────────────────────────
+
+model Service {
+  id          String        @id @default(cuid())
+  title       String
+  description String        @db.Text
+  price       Decimal       @db.Decimal(12, 2)
+  priceUnit   String        @default("разово")
+  status      ServiceStatus @default(DRAFT)
+  images      String[]
+  tags        String[]
+
+  categoryId String
+  category   Category @relation(fields: [categoryId], references: [id])
+
+  sellerId String
+  seller   User   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+
+  orders  Order[]
+  reviews Review[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── ORDERS ────────────────────────────────────────────────────────────────
+
+model Order {
+  id      String      @id @default(cuid())
+  status  OrderStatus @default(PENDING)
+  price   Decimal     @db.Decimal(12, 2)
+  comment String?     @db.Text
+
+  buyerId   String
+  buyer     User    @relation("BuyerOrders", fields: [buyerId], references: [id])
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id])
+
+  review Review?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ─── REVIEWS ───────────────────────────────────────────────────────────────
+
+model Review {
+  id      String @id @default(cuid())
+  rating  Int
+  comment String @db.Text
+
+  authorId  String
+  author    User    @relation("ReviewAuthor", fields: [authorId], references: [id])
+  serviceId String
+  service   Service @relation(fields: [serviceId], references: [id])
+  orderId   String  @unique
+  order     Order   @relation(fields: [orderId], references: [id])
+
+  createdAt DateTime @default(now())
+}
