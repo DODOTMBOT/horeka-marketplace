@@ -1,74 +1,32 @@
-import {
-  S3Client,
-  PutObjectCommand,
-  DeleteObjectCommand,
-  GetObjectCommand,
-} from '@aws-sdk/client-s3'
-import { getSignedUrl } from '@aws-sdk/s3-request-presigner'
+import { writeFile, unlink, mkdir } from 'fs/promises'
+import { existsSync } from 'fs'
+import path from 'path'
 
-function getS3Client() {
-  const endpoint = process.env.S3_ENDPOINT
-  const region = process.env.S3_REGION ?? 'ru-1'
-  const accessKeyId = process.env.S3_ACCESS_KEY_ID
-  const secretAccessKey = process.env.S3_SECRET_ACCESS_KEY
-
-  if (!endpoint || !accessKeyId || !secretAccessKey) {
-    throw new Error('S3 env vars not configured (S3_ENDPOINT, S3_ACCESS_KEY_ID, S3_SECRET_ACCESS_KEY)')
-  }
-
-  return new S3Client({
-    endpoint,
-    region,
-    credentials: { accessKeyId, secretAccessKey },
-    forcePathStyle: false,
-  })
-}
-
-const BUCKET = process.env.S3_BUCKET ?? 'horeka-media'
+const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads')
 
 export async function uploadFile(
   file: File,
   folder: 'avatars' | 'services',
   userId: string
 ): Promise<{ url: string; path: string }> {
-  const s3 = getS3Client()
   const ext = file.name.split('.').pop() ?? 'jpg'
-  const path = `${folder}/${userId}/${Date.now()}.${ext}`
+  const relativePath = `${folder}/${userId}/${Date.now()}.${ext}`
+  const absDir = path.join(UPLOAD_DIR, folder, userId)
+
+  if (!existsSync(absDir)) {
+    await mkdir(absDir, { recursive: true })
+  }
+
+  const absPath = path.join(UPLOAD_DIR, relativePath)
   const buffer = Buffer.from(await file.arrayBuffer())
+  await writeFile(absPath, buffer)
 
-  await s3.send(
-    new PutObjectCommand({
-      Bucket: BUCKET,
-      Key: path,
-      Body: buffer,
-      ContentType: file.type,
-      ACL: 'public-read',
-    })
-  )
-
-  // Timeweb S3 public URL: https://<bucket>.<s3-host>/<key>
-  const host = process.env.S3_ENDPOINT!.replace(/^https?:\/\//, '')
-  const url = `https://${BUCKET}.${host}/${path}`
-
-  return { url, path }
+  return { url: `/uploads/${relativePath}`, path: relativePath }
 }
 
-export async function deleteFile(path: string): Promise<void> {
-  const s3 = getS3Client()
-  await s3.send(
-    new DeleteObjectCommand({
-      Bucket: BUCKET,
-      Key: path,
-    })
-  )
-}
-
-// For private files: generate a short-lived signed URL
-export async function getPresignedUrl(path: string, expiresIn = 3600): Promise<string> {
-  const s3 = getS3Client()
-  return getSignedUrl(
-    s3,
-    new GetObjectCommand({ Bucket: BUCKET, Key: path }),
-    { expiresIn }
-  )
+export async function deleteFile(filePath: string): Promise<void> {
+  const absPath = path.join(UPLOAD_DIR, filePath)
+  if (existsSync(absPath)) {
+    await unlink(absPath)
+  }
 }

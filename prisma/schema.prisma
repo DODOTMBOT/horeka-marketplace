@@ -52,12 +52,22 @@ model User {
   businessType BusinessType?
   companyName  String?
 
+  // Seller profile
+  bio           String?
+  portfolioUrls String[]
+
+  blocked   Boolean  @default(false)
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  services Service[]
-  orders   Order[]   @relation("BuyerOrders")
-  reviews  Review[]  @relation("ReviewAuthor")
+  services              Service[]
+  orders                Order[]                  @relation("BuyerOrders")
+  reviews               Review[]                 @relation("ReviewAuthor")
+  favorites             Favorite[]
+  notifications         Notification[]
+  conversations         ConversationParticipant[]
+  sentMessages          Message[]                @relation("MessageSender")
 }
 
 // ─── CATEGORIES ────────────────────────────────────────────────────────────
@@ -81,6 +91,7 @@ model Service {
   status      ServiceStatus @default(DRAFT)
   images      String[]
   tags        String[]
+  packages    Json?         // ServicePackage[]
 
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id])
@@ -88,8 +99,10 @@ model Service {
   sellerId String
   seller   User   @relation(fields: [sellerId], references: [id], onDelete: Cascade)
 
-  orders  Order[]
-  reviews Review[]
+  orders        Order[]
+  reviews       Review[]
+  favorites     Favorite[]
+  conversations Conversation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -98,10 +111,14 @@ model Service {
 // ─── ORDERS ────────────────────────────────────────────────────────────────
 
 model Order {
-  id      String      @id @default(cuid())
-  status  OrderStatus @default(PENDING)
-  price   Decimal     @db.Decimal(12, 2)
-  comment String?     @db.Text
+  id            String      @id @default(cuid())
+  status        OrderStatus @default(PENDING)
+  price         Decimal     @db.Decimal(12, 2)
+  comment       String?     @db.Text
+  disputeReason String?     @db.Text
+
+  disputeConversationId String?
+  disputeConversation   Conversation? @relation("OrderDispute", fields: [disputeConversationId], references: [id])
 
   buyerId   String
   buyer     User    @relation("BuyerOrders", fields: [buyerId], references: [id])
@@ -129,4 +146,72 @@ model Review {
   order     Order   @relation(fields: [orderId], references: [id])
 
   createdAt DateTime @default(now())
+}
+
+// ─── FAVORITES ─────────────────────────────────────────────────────────────
+
+model Favorite {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  serviceId String
+  service   Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, serviceId])
+}
+
+// ─── NOTIFICATIONS ─────────────────────────────────────────────────────────
+
+enum NotificationType {
+  ORDER_NEW
+  ORDER_STATUS
+  REVIEW_NEW
+  MESSAGE_NEW
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      NotificationType
+  title     String
+  body      String
+  link      String?
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+}
+
+// ─── MESSAGES ──────────────────────────────────────────────────────────────
+
+model Conversation {
+  id        String    @id @default(cuid())
+  serviceId String?
+  service   Service?  @relation(fields: [serviceId], references: [id], onDelete: SetNull)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  participants    ConversationParticipant[]
+  messages        Message[]
+  disputeOrders   Order[]               @relation("OrderDispute")
+}
+
+model ConversationParticipant {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  userId         String
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+}
+
+model Message {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation("MessageSender", fields: [senderId], references: [id])
+  body           String       @db.Text
+  createdAt      DateTime     @default(now())
 }

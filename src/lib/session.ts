@@ -1,38 +1,15 @@
 import 'server-only'
-import { SignJWT, jwtVerify } from 'jose'
 import { cookies } from 'next/headers'
-import type { UserRole } from '@prisma/client'
+import { encrypt, decrypt } from './jwt'
+import type { SessionPayload } from './jwt'
+import { prisma } from './prisma'
+import { redirect } from 'next/navigation'
 
-export interface SessionPayload {
-  userId: string
-  email: string
-  name: string
-  role: UserRole
-  expiresAt: Date
-}
-
-const secretKey = process.env.SESSION_SECRET
-const encodedKey = new TextEncoder().encode(secretKey)
+export type { SessionPayload }
+export { encrypt, decrypt }
 
 const COOKIE_NAME = 'horeka_session'
-const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000 // 7 days
-
-export async function encrypt(payload: SessionPayload): Promise<string> {
-  return new SignJWT({ ...payload })
-    .setProtectedHeader({ alg: 'HS256' })
-    .setIssuedAt()
-    .setExpirationTime('7d')
-    .sign(encodedKey)
-}
-
-export async function decrypt(token: string): Promise<SessionPayload | null> {
-  try {
-    const { payload } = await jwtVerify(token, encodedKey, { algorithms: ['HS256'] })
-    return payload as unknown as SessionPayload
-  } catch {
-    return null
-  }
-}
+const SESSION_DURATION = 7 * 24 * 60 * 60 * 1000
 
 export async function createSession(data: Omit<SessionPayload, 'expiresAt'>) {
   const expiresAt = new Date(Date.now() + SESSION_DURATION)
@@ -41,7 +18,7 @@ export async function createSession(data: Omit<SessionPayload, 'expiresAt'>) {
   const cookieStore = await cookies()
   cookieStore.set(COOKIE_NAME, session, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.COOKIE_SECURE === 'true',
     sameSite: 'lax',
     expires: expiresAt,
     path: '/',
@@ -52,7 +29,12 @@ export async function getSession(): Promise<SessionPayload | null> {
   const cookieStore = await cookies()
   const token = cookieStore.get(COOKIE_NAME)?.value
   if (!token) return null
-  return decrypt(token)
+  const payload = await decrypt(token)
+  if (!payload) return null
+  // Check if user is blocked
+  const user = await prisma.user.findUnique({ where: { id: payload.userId }, select: { blocked: true } })
+  if (user?.blocked) redirect('/blocked')
+  return payload
 }
 
 export async function deleteSession() {
@@ -67,7 +49,7 @@ export async function refreshSession(payload: SessionPayload) {
   const cookieStore = await cookies()
   cookieStore.set(COOKIE_NAME, session, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
+    secure: process.env.COOKIE_SECURE === 'true',
     sameSite: 'lax',
     expires: expiresAt,
     path: '/',
