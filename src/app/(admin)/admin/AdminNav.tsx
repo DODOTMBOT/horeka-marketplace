@@ -83,7 +83,7 @@ export default function AdminNav({ active }: { active: string }) {
             </svg>
           </div>
           <div>
-            <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '12px', fontWeight: 700, lineHeight: 1, letterSpacing: '-0.2px' }}>HoReCa Hub</p>
+            <p style={{ color: 'rgba(255,255,255,0.9)', fontSize: '12px', fontWeight: 700, lineHeight: 1, letterSpacing: '-0.2px' }}>Unit One</p>
             <p style={{ color: 'rgba(255,255,255,0.28)', fontSize: '10px', marginTop: '2px', letterSpacing: '0.02em' }}>ADMIN CONSOLE</p>
           </div>
         </Link>

@@ -14,13 +14,13 @@ const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://unit-one.ru'
 export const metadata: Metadata = {
   metadataBase: new URL(BASE_URL),
   title: {
-    default: 'HoReCa Hub — маркетплейс для ресторанов и отелей',
-    template: '%s | HoReCa Hub',
+    default: 'Unit One — платформа для профессионалов HoReCa',
+    template: '%s | Unit One',
   },
-  description: 'Проверенные поставщики продуктов, оборудования и услуг для ресторанов, отелей и кафе. Только верифицированные компании.',
-  keywords: ['HoReCa', 'поставщики', 'рестораны', 'отели', 'кафе', 'оборудование', 'маркетплейс'],
+  description: 'Единая платформа для ресторанного бизнеса: услуги специалистов, вакансии и резюме, поставщики продуктов и оборудования.',
+  keywords: ['HoReCa', 'рестораны', 'отели', 'кафе', 'поставщики', 'вакансии', 'услуги', 'маркетплейс', 'Unit One'],
   openGraph: {
-    siteName: 'HoReCa Hub',
+    siteName: 'Unit One',
     locale: 'ru_RU',
     type: 'website',
   },

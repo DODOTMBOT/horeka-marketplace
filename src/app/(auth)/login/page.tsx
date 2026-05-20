@@ -39,9 +39,9 @@ export default function LoginPage() {
               <polyline points="9 22 9 12 15 12 15 22"/>
             </svg>
           </div>
-          <span style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text)' }}>HoReCa Hub</span>
+          <span style={{ fontSize: '22px', fontWeight: 700, color: 'var(--text)' }}>Unit One</span>
         </div>
-        <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Войдите в аккаунт</p>
+        <p style={{ color: 'var(--text-muted)', fontSize: '14px' }}>Платформа для профессионалов HoReCa</p>
       </div>
 
       {/* Card */}

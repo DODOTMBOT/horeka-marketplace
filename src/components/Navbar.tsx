@@ -28,7 +28,7 @@ export default async function Navbar() {
               <polyline points="9 22 9 12 15 12 15 22"/>
             </svg>
           </div>
-          <span style={{ fontSize: '17px', fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.4px' }}>HoReCa Hub</span>
+          <span style={{ fontSize: '17px', fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.4px' }}>Unit One</span>
         </Link>
 
         {/* Search */}

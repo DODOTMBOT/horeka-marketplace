@@ -5,8 +5,8 @@ import { prisma } from '@/lib/prisma'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'HoReCa Hub — маркетплейс для ресторанов и отелей',
-  description: 'Проверенные поставщики продуктов, оборудования и услуг для ресторанов, отелей и кафе.',
+  title: 'Unit One — платформа для профессионалов HoReCa',
+  description: 'Услуги специалистов, вакансии, поставщики продуктов и оборудования для ресторанов, отелей и кафе.',
 }
 
 export default async function LandingPage() {
@@ -90,20 +90,20 @@ export default async function LandingPage() {
                   fontSize: '12px', fontWeight: 700, color: '#5c6bc0',
                   marginBottom: '14px', border: '1px solid rgba(255,255,255,0.7)',
                 }}>
-                  ✦ Маркетплейс для HoReCa
+                  ✦ Платформа для профессионалов HoReCa
                 </div>
                 <h1 style={{
                   fontSize: 'clamp(22px, 3vw, 32px)', fontWeight: 800,
                   color: '#2d3057', lineHeight: 1.2,
                   letterSpacing: '-0.5px', marginBottom: '10px', maxWidth: '380px',
                 }}>
-                  Всё для ресторанов, отелей и кафе
+                  Услуги, вакансии и поставщики для HoReCa
                 </h1>
                 <p style={{
                   fontSize: '14px', color: '#4a4f7a', lineHeight: 1.6,
                   marginBottom: '24px', maxWidth: '320px',
                 }}>
-                  Проверенные поставщики продуктов, оборудования и услуг
+                  Всё для ресторанного бизнеса в одном месте — специалисты, открытые позиции и проверенные поставщики
                 </p>
                 <Link href="/catalog" style={{
                   display: 'inline-flex', alignItems: 'center', gap: '6px',
@@ -113,7 +113,7 @@ export default async function LandingPage() {
                   fontSize: '14px', fontWeight: 700,
                   boxShadow: '0 4px 16px rgba(249,115,22,0.38)',
                 }}>
-                  Найти поставщика
+                  Начать работу
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="9 18 15 12 9 6"/>
                   </svg>
@@ -266,9 +266,9 @@ export default async function LandingPage() {
               gridTemplateColumns: 'repeat(4, 1fr)',
             }}>
               {[
-                { value: '500+', label: 'Поставщиков' },
-                { value: '2 000+', label: 'Услуг' },
-                { value: '8', label: 'Категорий' },
+                { value: '500+', label: 'Специалистов' },
+                { value: '2 000+', label: 'Предложений' },
+                { value: '10+', label: 'Категорий' },
                 { value: '98%', label: 'Довольных клиентов' },
               ].map((s, i) => (
                 <div key={s.label} style={{
@@ -323,7 +323,7 @@ export default async function LandingPage() {
         padding: '28px 24px', textAlign: 'center', marginTop: '24px',
       }}>
         <p style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
-          © 2026 HoReCa Hub — маркетплейс для профессионалов отрасли
+          © 2026 Unit One — платформа для профессионалов HoReCa
         </p>
       </footer>
     </div>

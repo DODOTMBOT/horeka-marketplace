@@ -48,7 +48,7 @@ export default async function DashboardNav({ active }: { active?: string }) {
                 <polyline points="9 22 9 12 15 12 15 22"/>
               </svg>
             </div>
-            <span style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text)' }}>HoReCa Hub</span>
+            <span style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text)' }}>Unit One</span>
           </Link>
           {links.map(link => (
             <Link key={link.key} href={link.href} style={{

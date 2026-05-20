@@ -9,12 +9,12 @@ import { prisma } from '@/lib/prisma'
 export async function generateMetadata({ searchParams }: { searchParams: Promise<SearchParams> }): Promise<Metadata> {
   const params = await searchParams
   if (params.search) {
-    return { title: `Поиск: ${params.search}`, description: `Результаты поиска по запросу "${params.search}" в каталоге HoReCa Hub` }
+    return { title: `Поиск: ${params.search}`, description: `Результаты поиска по запросу "${params.search}" в каталоге Unit One` }
   }
   if (params.category) {
-    return { title: `Каталог — ${params.category}`, description: `Поставщики и услуги категории ${params.category} на HoReCa Hub` }
+    return { title: `Каталог — ${params.category}`, description: `Поставщики и услуги категории ${params.category} на Unit One` }
   }
-  return { title: 'Каталог услуг', description: 'Все поставщики и услуги для ресторанного бизнеса: продукты, оборудование, персонал и многое другое' }
+  return { title: 'Каталог', description: 'Услуги специалистов, поставщики продуктов и оборудования для ресторанов, отелей и кафе на Unit One' }
 }
 
 const PRICE_RANGES = [
