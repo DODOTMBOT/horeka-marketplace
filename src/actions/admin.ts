@@ -255,6 +255,61 @@ export async function getAdminLogs({
   return { logs, total, pages: Math.ceil(total / PAGE) }
 }
 
+// ─── Multi-accounts ──────────────────────────────────────────────────────────
+
+export async function getAdminMultiAccounts() {
+  await requireAdmin()
+
+  // Find IPs that have 2+ distinct users in activity logs
+  const rows = await prisma.$queryRaw<{ ip: string; userIds: string[] }[]>`
+    SELECT ip, array_agg(DISTINCT "userId") AS "userIds"
+    FROM "ActivityLog"
+    WHERE ip IS NOT NULL
+      AND ip != 'unknown'
+      AND "userId" IS NOT NULL
+    GROUP BY ip
+    HAVING COUNT(DISTINCT "userId") >= 2
+    ORDER BY COUNT(DISTINCT "userId") DESC
+    LIMIT 200
+  `
+
+  if (!rows.length) return []
+
+  const allUserIds = [...new Set(rows.flatMap(r => r.userIds))]
+
+  const users = await prisma.user.findMany({
+    where: { id: { in: allUserIds } },
+    select: {
+      id: true, name: true, email: true, role: true, blocked: true, createdAt: true,
+      _count: { select: { orders: true, services: true } },
+    },
+  })
+
+  const userMap = new Map(users.map(u => [u.id, u]))
+
+  // Get last seen per user per ip from logs
+  const lastSeen = await prisma.$queryRaw<{ ip: string; userId: string; lastSeen: Date }[]>`
+    SELECT ip, "userId", MAX("createdAt") AS "lastSeen"
+    FROM "ActivityLog"
+    WHERE ip = ANY(${rows.map(r => r.ip)}::text[])
+      AND "userId" = ANY(${allUserIds}::text[])
+    GROUP BY ip, "userId"
+  `
+  const lastSeenMap = new Map(lastSeen.map(r => [`${r.ip}:${r.userId}`, r.lastSeen]))
+
+  return rows.map(row => ({
+    ip: row.ip,
+    accounts: row.userIds
+      .map(id => {
+        const u = userMap.get(id)
+        if (!u) return null
+        return { ...u, lastSeen: lastSeenMap.get(`${row.ip}:${id}`) ?? null }
+      })
+      .filter(Boolean)
+      .sort((a, b) => (a!.blocked === b!.blocked ? 0 : a!.blocked ? 1 : -1)),
+  }))
+}
+
 // ─── Categories ──────────────────────────────────────────────────────────────
 
 export async function getAdminCategories() {
