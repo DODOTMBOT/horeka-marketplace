@@ -1,6 +1,7 @@
 import AdminNav from '../AdminNav'
 import { getAdminUsers, setUserRole, setUserBlocked, setInnVerified } from '@/actions/admin'
 import { ActionButton } from '../AdminActions'
+import Link from 'next/link'
 import type { UserRole } from '@prisma/client'
 
 const roleStyle: Record<string, { label: string; color: string; bg: string }> = {
@@ -28,6 +29,16 @@ export default async function AdminUsersPage({
             <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#111827', letterSpacing: '-0.2px' }}>Пользователи</h1>
             <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: '2px' }}>{users.length} записей</p>
           </div>
+          <a href="/api/admin/export?type=users" style={{
+            padding: '7px 14px', borderRadius: '6px', border: '1px solid #e5e7eb',
+            fontSize: '12px', fontWeight: 600, color: '#374151', textDecoration: 'none',
+            display: 'flex', alignItems: 'center', gap: '6px', background: '#fff',
+          }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            CSV
+          </a>
         </div>
 
         <div style={{ padding: '20px 28px' }}>
@@ -103,7 +114,9 @@ export default async function AdminUsersPage({
                             width: '7px', height: '7px', borderRadius: '50%', flexShrink: 0,
                             background: u.blocked ? '#dc2626' : '#16a34a',
                           }} />
-                          <span style={{ fontWeight: 600, color: '#111827' }}>{u.name ?? '—'}</span>
+                          <Link href={`/admin/users/${u.id}`} style={{ fontWeight: 600, color: '#111827', textDecoration: 'none' }}>
+                            {u.name ?? '—'}
+                          </Link>
                           {u.blocked && (
                             <span style={{ fontSize: '10px', fontWeight: 700, color: '#dc2626', letterSpacing: '0.04em' }}>BLOCK</span>
                           )}

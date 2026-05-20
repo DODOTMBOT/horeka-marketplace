@@ -7,6 +7,7 @@ import { createSession, deleteSession } from '@/lib/session'
 import { RegisterSchema, LoginSchema } from '@/lib/definitions'
 import type { RegisterFormState, LoginFormState } from '@/lib/definitions'
 import type { UserRole } from '@prisma/client'
+import { logActivity } from '@/lib/activity'
 
 export async function register(
   _prevState: RegisterFormState,
@@ -45,6 +46,7 @@ export async function register(
   })
 
   await createSession({ userId: user.id, email: user.email, name: user.name, role: user.role })
+  await logActivity({ userId: user.id, action: 'REGISTER', meta: { email, role } })
 
   redirect('/dashboard')
 }
@@ -76,6 +78,7 @@ export async function login(
   }
 
   await createSession({ userId: user.id, email: user.email, name: user.name, role: user.role })
+  await logActivity({ userId: user.id, action: 'LOGIN', meta: { email } })
 
   redirect('/dashboard')
 }

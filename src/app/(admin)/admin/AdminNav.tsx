@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import { logout } from '@/actions/auth'
 
-const links = [
+const mainLinks = [
   {
     href: '/admin',
     label: 'Дашборд',
@@ -54,6 +54,58 @@ const links = [
       </svg>
     ),
   },
+  {
+    href: '/admin/logs',
+    label: 'Логи',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="12" y2="17"/>
+      </svg>
+    ),
+  },
+]
+
+const manageLinks = [
+  {
+    href: '/admin/moderation',
+    label: 'Модерация',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 11.08V12a10 10 0 11-5.93-9.14"/>
+        <polyline points="22 4 12 14.01 9 11.01"/>
+      </svg>
+    ),
+  },
+  {
+    href: '/admin/categories',
+    label: 'Категории',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
+        <line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/>
+      </svg>
+    ),
+  },
+  {
+    href: '/admin/finance',
+    label: 'Финансы',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/>
+      </svg>
+    ),
+  },
+  {
+    href: '/admin/notify',
+    label: 'Уведомления',
+    icon: (
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 01-3.46 0"/>
+      </svg>
+    ),
+  },
 ]
 
 export default function AdminNav({ active }: { active: string }) {
@@ -90,11 +142,35 @@ export default function AdminNav({ active }: { active: string }) {
       </div>
 
       {/* Nav links */}
-      <nav style={{ padding: '8px 8px', flex: 1 }}>
+      <nav style={{ padding: '8px 8px', flex: 1, overflowY: 'auto' }}>
         <p style={{ fontSize: '10px', fontWeight: 600, color: 'rgba(255,255,255,0.22)', letterSpacing: '0.08em', textTransform: 'uppercase', padding: '8px 8px 6px' }}>
           Навигация
         </p>
-        {links.map(link => {
+        {mainLinks.map(link => {
+          const isActive = active === link.href
+          return (
+            <Link key={link.href} href={link.href} style={{
+              display: 'flex', alignItems: 'center', gap: '9px',
+              padding: '7px 8px', borderRadius: '6px', marginBottom: '1px',
+              fontSize: '13px', fontWeight: isActive ? 600 : 400,
+              color: isActive ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.42)',
+              background: isActive ? 'rgba(255,255,255,0.08)' : 'transparent',
+              textDecoration: 'none',
+              transition: 'all 0.1s',
+            }}>
+              <span style={{ opacity: isActive ? 1 : 0.7 }}>{link.icon}</span>
+              {link.label}
+              {isActive && (
+                <span style={{ marginLeft: 'auto', width: '4px', height: '4px', borderRadius: '50%', background: 'var(--primary)' }} />
+              )}
+            </Link>
+          )
+        })}
+
+        <p style={{ fontSize: '10px', fontWeight: 600, color: 'rgba(255,255,255,0.22)', letterSpacing: '0.08em', textTransform: 'uppercase', padding: '16px 8px 6px' }}>
+          Управление
+        </p>
+        {manageLinks.map(link => {
           const isActive = active === link.href
           return (
             <Link key={link.href} href={link.href} style={{

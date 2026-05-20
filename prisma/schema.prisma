@@ -68,6 +68,7 @@ model User {
   notifications         Notification[]
   conversations         ConversationParticipant[]
   sentMessages          Message[]                @relation("MessageSender")
+  activityLogs          ActivityLog[]
 }
 
 // ─── CATEGORIES ────────────────────────────────────────────────────────────
@@ -214,4 +215,21 @@ model Message {
   sender         User         @relation("MessageSender", fields: [senderId], references: [id])
   body           String       @db.Text
   createdAt      DateTime     @default(now())
+}
+
+// ─── ACTIVITY LOG ──────────────────────────────────────────────────────────
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String
+  target    String?
+  meta      Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
 }

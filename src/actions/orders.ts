@@ -5,6 +5,7 @@ import { getSession } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createNotification } from './notifications'
+import { logActivity } from '@/lib/activity'
 
 export type CreateOrderState = {
   error?: string
@@ -53,6 +54,7 @@ export async function createOrder(
     body: `Поступил новый заказ на услугу "${order.service.title}"`,
     link: `/dashboard/orders/incoming`,
   })
+  await logActivity({ userId: session.userId, action: 'ORDER_CREATE', target: order.id, meta: { serviceId, serviceTitle: order.service.title } })
 
   revalidatePath('/dashboard/orders')
   redirect(`/dashboard/orders/${order.id}`)
@@ -185,6 +187,13 @@ export async function updateOrderStatus(
     title: 'Статус заказа изменён',
     body: `Заказ на "${order.service.title}" ${statusLabels[status] ?? status}`,
     link: `/dashboard/orders/${orderId}`,
+  })
+
+  await logActivity({
+    userId: session.userId,
+    action: status === 'DISPUTED' ? 'ORDER_DISPUTE' : 'ORDER_STATUS',
+    target: orderId,
+    meta: { status, serviceTitle: order.service.title, ...(disputeReason ? { disputeReason } : {}) },
   })
 
   revalidatePath(`/dashboard/orders/${orderId}`)

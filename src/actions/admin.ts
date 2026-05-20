@@ -5,6 +5,7 @@ import { getSession } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import type { UserRole } from '@prisma/client'
 import { createNotification } from './notifications'
+import { logActivity } from '@/lib/activity'
 
 async function requireAdmin() {
   const session = await getSession()
@@ -82,22 +83,25 @@ export async function getAdminUsers(search?: string, role?: string) {
 }
 
 export async function setUserRole(userId: string, role: UserRole): Promise<{ error?: string }> {
-  await requireAdmin()
+  const admin = await requireAdmin()
   await prisma.user.update({ where: { id: userId }, data: { role } })
+  await logActivity({ userId: admin.userId, action: 'ADMIN_SET_ROLE', target: userId, meta: { role } })
   revalidatePath('/admin/users')
   return {}
 }
 
 export async function setUserBlocked(userId: string, blocked: boolean): Promise<{ error?: string }> {
-  await requireAdmin()
+  const admin = await requireAdmin()
   await prisma.user.update({ where: { id: userId }, data: { blocked } })
+  await logActivity({ userId: admin.userId, action: 'ADMIN_BLOCK_USER', target: userId, meta: { blocked } })
   revalidatePath('/admin/users')
   return {}
 }
 
 export async function setInnVerified(userId: string, innVerified: boolean): Promise<{ error?: string }> {
-  await requireAdmin()
+  const admin = await requireAdmin()
   await prisma.user.update({ where: { id: userId }, data: { innVerified } })
+  await logActivity({ userId: admin.userId, action: 'ADMIN_INN_VERIFY', target: userId, meta: { innVerified } })
   revalidatePath('/admin/users')
   return {}
 }
@@ -195,6 +199,9 @@ export async function resolveDispute(orderId: string, resolution: 'COMPLETED' | 
     }),
   ])
 
+  const admin = await getSession()
+  await logActivity({ userId: admin?.userId, action: 'ADMIN_RESOLVE_DISPUTE', target: orderId, meta: { resolution, serviceTitle: order.service.title } })
+
   revalidatePath('/admin/orders')
   revalidatePath(link)
   return {}
@@ -215,8 +222,243 @@ export async function getAdminReviews() {
 }
 
 export async function adminDeleteReview(reviewId: string): Promise<{ error?: string }> {
-  await requireAdmin()
+  const admin = await requireAdmin()
   await prisma.review.delete({ where: { id: reviewId } })
+  await logActivity({ userId: admin.userId, action: 'ADMIN_DELETE_REVIEW', target: reviewId })
   revalidatePath('/admin/reviews')
   return {}
+}
+
+// ─── Activity Logs ───────────────────────────────────────────────────────────
+
+export async function getAdminLogs({
+  userId,
+  action,
+  page = 1,
+}: { userId?: string; action?: string; page?: number } = {}) {
+  await requireAdmin()
+  const PAGE = 50
+  const where = {
+    ...(userId ? { userId } : {}),
+    ...(action && action !== 'ALL' ? { action } : {}),
+  }
+  const [logs, total] = await Promise.all([
+    prisma.activityLog.findMany({
+      where,
+      include: { user: { select: { id: true, name: true, email: true } } },
+      orderBy: { createdAt: 'desc' },
+      skip: (page - 1) * PAGE,
+      take: PAGE,
+    }),
+    prisma.activityLog.count({ where }),
+  ])
+  return { logs, total, pages: Math.ceil(total / PAGE) }
+}
+
+// ─── Categories ──────────────────────────────────────────────────────────────
+
+export async function getAdminCategories() {
+  await requireAdmin()
+  return prisma.category.findMany({
+    include: { _count: { select: { services: true } } },
+    orderBy: { name: 'asc' },
+  })
+}
+
+export async function createCategory(_prev: { error?: string; success?: boolean }, formData: FormData) {
+  await requireAdmin()
+  const name = (formData.get('name') as string)?.trim()
+  const icon = (formData.get('icon') as string)?.trim() || '📦'
+  if (!name || name.length < 2) return { error: 'Минимум 2 символа' }
+  const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-zа-яё0-9-]/gi, '')
+  const existing = await prisma.category.findUnique({ where: { slug } })
+  if (existing) return { error: 'Категория с таким slug уже существует' }
+  await prisma.category.create({ data: { name, icon, slug } })
+  revalidatePath('/admin/categories')
+  revalidatePath('/')
+  return { success: true }
+}
+
+export async function updateCategory(_prev: { error?: string; success?: boolean }, formData: FormData) {
+  await requireAdmin()
+  const id = formData.get('id') as string
+  const name = (formData.get('name') as string)?.trim()
+  const icon = (formData.get('icon') as string)?.trim()
+  if (!name || name.length < 2) return { error: 'Минимум 2 символа' }
+  await prisma.category.update({ where: { id }, data: { name, icon } })
+  revalidatePath('/admin/categories')
+  revalidatePath('/')
+  return { success: true }
+}
+
+export async function deleteCategory(id: string): Promise<{ error?: string }> {
+  await requireAdmin()
+  const count = await prisma.service.count({ where: { categoryId: id } })
+  if (count > 0) return { error: `Нельзя удалить — в категории ${count} услуг` }
+  await prisma.category.delete({ where: { id } })
+  revalidatePath('/admin/categories')
+  revalidatePath('/')
+  return {}
+}
+
+// ─── Moderation ──────────────────────────────────────────────────────────────
+
+export async function getAdminModeration() {
+  await requireAdmin()
+  return prisma.service.findMany({
+    where: { status: 'DRAFT' },
+    include: {
+      category: true,
+      seller: { select: { id: true, name: true, email: true, companyName: true, innVerified: true } },
+      _count: { select: { orders: true, reviews: true } },
+    },
+    orderBy: { createdAt: 'asc' },
+  })
+}
+
+export async function approveService(serviceId: string): Promise<{ error?: string }> {
+  const admin = await requireAdmin()
+  const service = await prisma.service.findUnique({
+    where: { id: serviceId },
+    include: { seller: true },
+  })
+  if (!service) return { error: 'Услуга не найдена' }
+  await prisma.service.update({ where: { id: serviceId }, data: { status: 'ACTIVE' } })
+  await createNotification({
+    userId: service.sellerId,
+    type: 'ORDER_STATUS',
+    title: 'Услуга опубликована',
+    body: `Ваша услуга «${service.title}» прошла модерацию и теперь видна в каталоге`,
+    link: `/catalog/${serviceId}`,
+  })
+  await logActivity({ userId: admin.userId, action: 'SERVICE_EDIT', target: serviceId, meta: { action: 'approve', title: service.title } })
+  revalidatePath('/admin/moderation')
+  revalidatePath('/catalog')
+  return {}
+}
+
+export async function rejectService(serviceId: string, reason?: string): Promise<{ error?: string }> {
+  const admin = await requireAdmin()
+  const service = await prisma.service.findUnique({ where: { id: serviceId }, include: { seller: true } })
+  if (!service) return { error: 'Услуга не найдена' }
+  await prisma.service.update({ where: { id: serviceId }, data: { status: 'ARCHIVED' } })
+  await createNotification({
+    userId: service.sellerId,
+    type: 'ORDER_STATUS',
+    title: 'Услуга отклонена',
+    body: reason
+      ? `Услуга «${service.title}» отклонена: ${reason}`
+      : `Услуга «${service.title}» отклонена модератором. Исправьте и отправьте снова.`,
+    link: `/dashboard/services`,
+  })
+  await logActivity({ userId: admin.userId, action: 'SERVICE_EDIT', target: serviceId, meta: { action: 'reject', reason } })
+  revalidatePath('/admin/moderation')
+  return {}
+}
+
+// ─── User Detail ─────────────────────────────────────────────────────────────
+
+export async function getAdminUserDetail(userId: string) {
+  await requireAdmin()
+  return prisma.user.findUnique({
+    where: { id: userId },
+    include: {
+      services: {
+        include: { category: true, _count: { select: { orders: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      },
+      orders: {
+        include: { service: { select: { id: true, title: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      },
+      reviews: {
+        include: { service: { select: { id: true, title: true } } },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      },
+      activityLogs: {
+        orderBy: { createdAt: 'desc' },
+        take: 30,
+      },
+      _count: { select: { services: true, orders: true, reviews: true } },
+    },
+  })
+}
+
+// ─── Finance ─────────────────────────────────────────────────────────────────
+
+export async function getAdminFinance() {
+  await requireAdmin()
+  const [totalRevenue, completedOrders, avgOrder, topSellers, byDay] = await Promise.all([
+    prisma.order.aggregate({ _sum: { price: true }, where: { status: 'COMPLETED' } }),
+    prisma.order.count({ where: { status: 'COMPLETED' } }),
+    prisma.order.aggregate({ _avg: { price: true }, where: { status: 'COMPLETED' } }),
+    prisma.order.groupBy({
+      by: ['serviceId'],
+      where: { status: 'COMPLETED' },
+      _sum: { price: true },
+      _count: true,
+      orderBy: { _sum: { price: 'desc' } },
+      take: 5,
+    }),
+    prisma.$queryRaw<{ day: Date; revenue: number; count: bigint }[]>`
+      SELECT DATE_TRUNC('day', "createdAt") as day,
+             SUM(price)::float as revenue,
+             COUNT(*) as count
+      FROM "Order"
+      WHERE status = 'COMPLETED'
+        AND "createdAt" >= NOW() - INTERVAL '30 days'
+      GROUP BY 1 ORDER BY 1
+    `,
+  ])
+
+  const serviceIds = topSellers.map(t => t.serviceId)
+  const services = await prisma.service.findMany({
+    where: { id: { in: serviceIds } },
+    include: { seller: { select: { id: true, name: true, companyName: true } } },
+  })
+
+  const topWithNames = topSellers.map(t => ({
+    ...t,
+    service: services.find(s => s.id === t.serviceId),
+  }))
+
+  return {
+    totalRevenue: Number(totalRevenue._sum.price ?? 0),
+    completedOrders,
+    avgOrder: Number(avgOrder._avg.price ?? 0),
+    topSellers: topWithNames,
+    byDay: byDay.map(d => ({ day: d.day, revenue: d.revenue, count: Number(d.count) })),
+  }
+}
+
+// ─── Send Notification ───────────────────────────────────────────────────────
+
+export async function sendAdminNotification(
+  _prev: { error?: string; success?: boolean },
+  formData: FormData
+): Promise<{ error?: string; success?: boolean }> {
+  const admin = await requireAdmin()
+  const title = (formData.get('title') as string)?.trim()
+  const body = (formData.get('body') as string)?.trim()
+  const target = formData.get('target') as string // userId or 'ALL'
+
+  if (!title || !body) return { error: 'Заголовок и текст обязательны' }
+
+  if (target === 'ALL') {
+    const users = await prisma.user.findMany({ select: { id: true } })
+    await Promise.all(users.map(u => createNotification({ userId: u.id, type: 'ORDER_STATUS', title, body })))
+    await logActivity({ userId: admin.userId, action: 'ADMIN_BLOCK_USER', target: 'ALL', meta: { notif: title } })
+  } else {
+    await createNotification({ userId: target, type: 'ORDER_STATUS', title, body })
+  }
+
+  return { success: true }
+}
+
+export async function getAdminUsers2() {
+  await requireAdmin()
+  return prisma.user.findMany({ select: { id: true, name: true, email: true }, orderBy: { name: 'asc' } })
 }

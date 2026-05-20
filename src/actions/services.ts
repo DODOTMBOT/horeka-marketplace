@@ -6,6 +6,7 @@ import { uploadFile } from '@/lib/storage'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
+import { logActivity } from '@/lib/activity'
 
 export type ServicePackage = {
   tier: 'basic' | 'standard' | 'premium'
@@ -84,7 +85,7 @@ export async function createService(
     ? parsed.data.tags.split(',').map(t => t.trim()).filter(Boolean)
     : []
 
-  await prisma.service.create({
+  const created = await prisma.service.create({
     data: {
       title: parsed.data.title,
       description: parsed.data.description,
@@ -98,6 +99,8 @@ export async function createService(
       sellerId: session.userId,
     },
   })
+
+  await logActivity({ userId: session.userId, action: 'SERVICE_CREATE', target: created.id, meta: { title: parsed.data.title } })
 
   revalidatePath('/catalog')
   revalidatePath('/dashboard')
@@ -265,6 +268,8 @@ export async function updateService(
     },
   })
 
+  await logActivity({ userId: session.userId, action: 'SERVICE_EDIT', target: id, meta: { title: parsed.data.title } })
+
   revalidatePath('/catalog')
   revalidatePath(`/catalog/${id}`)
   revalidatePath('/dashboard/services')
@@ -279,6 +284,7 @@ export async function deleteService(id: string): Promise<{ error?: string }> {
   if (!service || service.sellerId !== session.userId) return { error: 'Нет доступа' }
 
   await prisma.service.delete({ where: { id } })
+  await logActivity({ userId: session.userId, action: 'SERVICE_DELETE', target: id, meta: { title: service.title } })
   revalidatePath('/dashboard/services')
   revalidatePath('/catalog')
   return {}

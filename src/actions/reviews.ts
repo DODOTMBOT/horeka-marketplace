@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 import { getSession } from '@/lib/session'
 import { revalidatePath } from 'next/cache'
 import { createNotification } from './notifications'
+import { logActivity } from '@/lib/activity'
 
 export type CreateReviewState = {
   error?: string
@@ -53,6 +54,8 @@ export async function createReview(
     body: `Получен новый отзыв ${rating}★ на услугу "${review.service.title}"`,
     link: `/catalog/${order.serviceId}`,
   })
+
+  await logActivity({ userId: session.userId, action: 'REVIEW_CREATE', target: review.id, meta: { rating, serviceId: order.serviceId } })
 
   revalidatePath(`/dashboard/orders/${orderId}`)
   revalidatePath(`/catalog/${order.serviceId}`)
