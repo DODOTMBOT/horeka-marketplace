@@ -116,30 +116,38 @@ export type ServiceFilters = {
   search?: string
   minPrice?: number
   maxPrice?: number
+  priceUnit?: string
+  tag?: string
+  innVerified?: boolean
   page?: number
 }
 
 const PAGE_SIZE = 12
 
 export async function getServices(filters: ServiceFilters = {}) {
-  const { categorySlug, search, minPrice, maxPrice, page = 1 } = filters
+  const { categorySlug, search, minPrice, maxPrice, priceUnit, tag, innVerified, page = 1 } = filters
 
   const where: Record<string, unknown> = { status: 'ACTIVE' }
 
-  if (categorySlug) {
-    where.category = { slug: categorySlug }
-  }
+  if (categorySlug) where.category = { slug: categorySlug }
+
   if (search) {
     where.OR = [
       { title: { contains: search, mode: 'insensitive' } },
+      { description: { contains: search, mode: 'insensitive' } },
       { tags: { has: search } },
     ]
   }
+
   if (minPrice !== undefined || maxPrice !== undefined) {
     where.price = {}
     if (minPrice !== undefined) (where.price as Record<string, unknown>).gte = minPrice
     if (maxPrice !== undefined) (where.price as Record<string, unknown>).lte = maxPrice
   }
+
+  if (priceUnit) where.priceUnit = priceUnit
+  if (tag) where.tags = { has: tag }
+  if (innVerified) where.seller = { innVerified: true }
 
   const [services, total] = await Promise.all([
     prisma.service.findMany({
@@ -157,6 +165,18 @@ export async function getServices(filters: ServiceFilters = {}) {
   ])
 
   return { services, total, pages: Math.ceil(total / PAGE_SIZE) }
+}
+
+export async function getAllTags(): Promise<{ tag: string; count: number }[]> {
+  const rows = await prisma.$queryRaw<{ tag: string; count: bigint }[]>`
+    SELECT UNNEST(tags) as tag, COUNT(*) as count
+    FROM "Service"
+    WHERE status = 'ACTIVE'
+    GROUP BY tag
+    ORDER BY count DESC, tag ASC
+    LIMIT 60
+  `
+  return rows.map(r => ({ tag: r.tag, count: Number(r.count) }))
 }
 
 export async function getService(id: string) {
