@@ -95,7 +95,7 @@ export default function OrderActions({
         <div>
           <div style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 'var(--radius-sm)', padding: '12px 14px', marginBottom: '10px' }}>
             <p style={{ fontSize: '12px', color: '#92400e', lineHeight: 1.5 }}>
-              Если поставщик нарушил условия — откройте спор. Менеджер рассмотрит ситуацию в течение 24 часов.
+              Если исполнитель нарушил условия — откройте спор. Менеджер рассмотрит ситуацию в течение 24 часов.
             </p>
           </div>
           <button

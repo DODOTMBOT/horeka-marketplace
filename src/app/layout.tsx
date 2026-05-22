@@ -1,12 +1,19 @@
 import type { Metadata } from 'next'
-import { Inter } from 'next/font/google'
+import { Manrope, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 
-const inter = Inter({
+const manrope = Manrope({
   subsets: ['latin', 'cyrillic'],
   weight: ['400', '500', '600', '700', '800'],
   display: 'swap',
-  variable: '--font-inter',
+  variable: '--font-manrope',
+})
+
+const jetbrainsMono = JetBrains_Mono({
+  subsets: ['latin'],
+  weight: ['400', '500', '600'],
+  display: 'swap',
+  variable: '--font-mono',
 })
 
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://unit-one.ru'
@@ -19,6 +26,15 @@ export const metadata: Metadata = {
   },
   description: 'Единая платформа для ресторанного бизнеса: услуги специалистов, вакансии и резюме, поставщики продуктов и оборудования.',
   keywords: ['HoReCa', 'рестораны', 'отели', 'кафе', 'поставщики', 'вакансии', 'услуги', 'маркетплейс', 'Unit One'],
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icon-32.png', type: 'image/png', sizes: '32x32' },
+      { url: '/icon-16.png', type: 'image/png', sizes: '16x16' },
+    ],
+    apple: [{ url: '/apple-icon.png', sizes: '180x180', type: 'image/png' }],
+    other: [{ rel: 'manifest', url: '/site.webmanifest' }],
+  },
   openGraph: {
     siteName: 'Unit One',
     locale: 'ru_RU',
@@ -32,7 +48,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="ru" className={inter.variable}>
+    <html lang="ru" className={`${manrope.variable} ${jetbrainsMono.variable}`}>
       <body>{children}</body>
     </html>
   )

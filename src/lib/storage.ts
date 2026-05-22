@@ -6,7 +6,7 @@ const UPLOAD_DIR = path.join(process.cwd(), 'public', 'uploads')
 
 export async function uploadFile(
   file: File,
-  folder: 'avatars' | 'services',
+  folder: 'avatars' | 'services' | 'logos',
   userId: string
 ): Promise<{ url: string; path: string }> {
   const ext = file.name.split('.').pop() ?? 'jpg'

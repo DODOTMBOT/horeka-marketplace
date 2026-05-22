@@ -3,70 +3,94 @@
 import { useState } from 'react'
 import Link from 'next/link'
 
-const SHOW_INITIAL = 10
+const SHOW_INITIAL = 24
 
 export default function TagsCloud({
   tags,
   activeTag,
   tagHrefs,
   clearTagHref,
+  accentColor = 'var(--ink)',
+  accentTextColor = '#fff',
 }: {
   tags: { tag: string; count: number }[]
   activeTag?: string
   tagHrefs: Record<string, string>
   clearTagHref: string
+  accentColor?: string
+  accentTextColor?: string
 }) {
   const [expanded, setExpanded] = useState(false)
 
-  const filtered = tags.filter(t => t.tag !== activeTag)
-  const visible = expanded ? filtered : filtered.slice(0, SHOW_INITIAL)
-  const hasMore = filtered.length > SHOW_INITIAL
+  if (!tags.length && !activeTag) return null
+
+  const minCount = Math.min(...tags.map(t => t.count))
+  const maxCount = Math.max(...tags.map(t => t.count))
+  const range = maxCount - minCount || 1
+
+  function fontSize(count: number) {
+    const ratio = (count - minCount) / range
+    return 11 + Math.round(ratio * 10) // 11px → 21px
+  }
+
+  function fontWeight(count: number) {
+    const ratio = (count - minCount) / range
+    return ratio > 0.6 ? 800 : ratio > 0.3 ? 700 : 600
+  }
+
+  const others = tags.filter(t => t.tag !== activeTag)
+  const visible = expanded ? others : others.slice(0, SHOW_INITIAL)
+  const hasMore = others.length > SHOW_INITIAL
 
   return (
-    <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '6px' }}>
+    <div>
       {activeTag && (
-        <Link href={clearTagHref} style={{
-          display: 'inline-flex', alignItems: 'center', gap: '4px',
-          fontSize: '12px', fontWeight: 700,
-          padding: '4px 11px', borderRadius: '50px',
-          background: 'var(--primary)', color: '#fff',
-          textDecoration: 'none',
-        }}>
-          #{activeTag} <span style={{ fontSize: '15px', lineHeight: 1, opacity: 0.8 }}>×</span>
-        </Link>
+        <div style={{ marginBottom: '10px' }}>
+          <Link href={clearTagHref} style={{
+            display: 'inline-flex', alignItems: 'center', gap: '6px',
+            padding: '6px 12px', borderRadius: 'var(--r-md)',
+            background: accentColor, color: accentTextColor,
+            fontSize: '12px', fontWeight: 800, textDecoration: 'none',
+            letterSpacing: '-0.01em',
+          }}>
+            #{activeTag}
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+              <path d="M18 6L6 18M6 6l12 12"/>
+            </svg>
+          </Link>
+        </div>
       )}
 
-      {visible.map(({ tag, count }) => (
-        <Link key={tag} href={tagHrefs[tag] ?? '/catalog'} style={{
-          display: 'inline-flex', alignItems: 'center', gap: '3px',
-          fontSize: '12px', fontWeight: 500,
-          padding: '4px 10px', borderRadius: '50px',
-          background: '#f3f4f6', color: '#6b7280',
-          border: '1px solid #e5e7eb',
-          textDecoration: 'none',
-          whiteSpace: 'nowrap',
-        }}>
-          #{tag}
-          <span style={{ fontSize: '10px', opacity: 0.5 }}>{count}</span>
-        </Link>
-      ))}
-
-      {hasMore && (
-        <button
-          onClick={() => setExpanded(v => !v)}
-          style={{
-            fontSize: '12px', fontWeight: 600, color: 'var(--primary)',
-            background: 'none', border: 'none', cursor: 'pointer',
-            padding: '4px 2px', textDecoration: 'none',
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px', alignItems: 'baseline' }}>
+        {visible.map(({ tag, count }) => (
+          <Link key={tag} href={tagHrefs[tag] ?? '/catalog'} style={{
+            fontSize: `${fontSize(count)}px`,
+            fontWeight: fontWeight(count),
+            fontFamily: 'var(--ff-display)',
+            color: 'var(--muted)',
+            textDecoration: 'none',
+            letterSpacing: '-0.02em',
+            transition: 'color 0.12s',
+            lineHeight: 1.4,
           }}
-        >
-          {expanded ? '← Скрыть' : `Ещё ${filtered.length - SHOW_INITIAL} →`}
-        </button>
-      )}
+          onMouseEnter={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--ink)' }}
+          onMouseLeave={e => { (e.currentTarget as HTMLAnchorElement).style.color = 'var(--muted)' }}
+          >
+            #{tag}
+          </Link>
+        ))}
 
-      {!tags.length && !activeTag && (
-        <span style={{ fontSize: '12px', color: '#d1d5db' }}>Тегов пока нет</span>
-      )}
+        {hasMore && (
+          <button onClick={() => setExpanded(v => !v)} style={{
+            fontSize: '11px', fontWeight: 700, color: 'var(--muted)',
+            background: 'none', border: 'none', cursor: 'pointer',
+            padding: '2px 0', textDecoration: 'underline', textUnderlineOffset: '2px',
+            letterSpacing: '-0.01em',
+          }}>
+            {expanded ? '← скрыть' : `+${others.length - SHOW_INITIAL} тегов`}
+          </button>
+        )}
+      </div>
     </div>
   )
 }

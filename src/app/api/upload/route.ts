@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getSession } from '@/lib/session'
 import { uploadFile } from '@/lib/storage'
 
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp']
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/svg+xml']
 const MAX_SIZE = 5 * 1024 * 1024 // 5 MB
 
 export async function POST(request: NextRequest) {
@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Максимальный размер файла — 5 МБ' }, { status: 422 })
   }
 
-  if (folder !== 'avatars' && folder !== 'services') {
+  if (folder !== 'avatars' && folder !== 'services' && folder !== 'logos') {
     return NextResponse.json({ error: 'Некорректная папка' }, { status: 422 })
   }
 

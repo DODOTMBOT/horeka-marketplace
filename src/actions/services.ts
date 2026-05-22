@@ -9,7 +9,7 @@ import { z } from 'zod'
 import { logActivity } from '@/lib/activity'
 
 export type ServicePackage = {
-  tier: 'basic' | 'standard' | 'premium'
+  tier: string
   name: string
   description: string
   price: number
@@ -39,7 +39,7 @@ export async function createService(
   const session = await getSession()
   if (!session) return { error: 'Не авторизован' }
   if (session.role !== 'SELLER' && session.role !== 'ADMIN') {
-    return { error: 'Только поставщики могут создавать услуги' }
+    return { error: 'Только исполнители могут создавать услуги' }
   }
 
   const raw = {
@@ -51,6 +51,7 @@ export async function createService(
     tags: formData.get('tags'),
     status: formData.get('status') || 'DRAFT',
   }
+  const fullDescription = (formData.get('fullDescription') as string | null) || null
 
   const parsed = ServiceSchema.safeParse(raw)
   if (!parsed.success) {
@@ -85,12 +86,16 @@ export async function createService(
     ? parsed.data.tags.split(',').map(t => t.trim()).filter(Boolean)
     : []
 
+  const format = (formData.get('format') as string) || 'service'
+
   const created = await prisma.service.create({
     data: {
       title: parsed.data.title,
       description: parsed.data.description,
+      fullDescription: fullDescription || undefined,
       price: parsed.data.price,
       priceUnit: parsed.data.priceUnit,
+      format,
       status: parsed.data.status as 'DRAFT' | 'ACTIVE',
       images: imageUrls,
       tags,
@@ -108,7 +113,7 @@ export async function createService(
 }
 
 export async function getCategories() {
-  return prisma.category.findMany({ orderBy: { name: 'asc' } })
+  return prisma.category.findMany({ orderBy: { name: 'asc' }, select: { id: true, name: true, icon: true, slug: true, format: true } })
 }
 
 export type ServiceFilters = {
@@ -120,15 +125,25 @@ export type ServiceFilters = {
   tag?: string
   innVerified?: boolean
   page?: number
+  sort?: 'newest' | 'price_asc' | 'price_desc' | 'popular'
+  format?: string
 }
 
 const PAGE_SIZE = 12
 
+const SORT_MAP: Record<string, object> = {
+  newest:    { createdAt: 'desc' },
+  price_asc: { price: 'asc' },
+  price_desc:{ price: 'desc' },
+  popular:   { reviews: { _count: 'desc' } },
+}
+
 export async function getServices(filters: ServiceFilters = {}) {
-  const { categorySlug, search, minPrice, maxPrice, priceUnit, tag, innVerified, page = 1 } = filters
+  const { categorySlug, search, minPrice, maxPrice, priceUnit, tag, innVerified, page = 1, sort = 'newest', format } = filters
 
   const where: Record<string, unknown> = { status: 'ACTIVE' }
 
+  if (format) where.format = format
   if (categorySlug) where.category = { slug: categorySlug }
 
   if (search) {
@@ -149,6 +164,8 @@ export async function getServices(filters: ServiceFilters = {}) {
   if (tag) where.tags = { has: tag }
   if (innVerified) where.seller = { innVerified: true }
 
+  const orderBy = SORT_MAP[sort] ?? SORT_MAP.newest
+
   const [services, total] = await Promise.all([
     prisma.service.findMany({
       where,
@@ -157,7 +174,7 @@ export async function getServices(filters: ServiceFilters = {}) {
         seller: { select: { id: true, name: true, avatarUrl: true, innVerified: true, companyName: true } },
         reviews: { select: { rating: true } },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy,
       skip: (page - 1) * PAGE_SIZE,
       take: PAGE_SIZE,
     }),
@@ -167,15 +184,45 @@ export async function getServices(filters: ServiceFilters = {}) {
   return { services, total, pages: Math.ceil(total / PAGE_SIZE) }
 }
 
-export async function getAllTags(): Promise<{ tag: string; count: number }[]> {
-  const rows = await prisma.$queryRaw<{ tag: string; count: bigint }[]>`
-    SELECT UNNEST(tags) as tag, COUNT(*) as count
-    FROM "Service"
-    WHERE status = 'ACTIVE'
-    GROUP BY tag
-    ORDER BY count DESC, tag ASC
-    LIMIT 60
-  `
+export async function getTopSellers(limit = 5) {
+  const sellers = await prisma.user.findMany({
+    where: { role: 'SELLER', services: { some: { status: 'ACTIVE' } } },
+    select: {
+      id: true, name: true, avatarUrl: true, companyName: true, innVerified: true,
+      services: {
+        where: { status: 'ACTIVE' },
+        select: { id: true, reviews: { select: { rating: true } } },
+      },
+    },
+    take: 30,
+  })
+
+  return sellers
+    .map(s => {
+      const allReviews = s.services.flatMap(svc => svc.reviews)
+      const avgRating = allReviews.length
+        ? allReviews.reduce((sum, r) => sum + r.rating, 0) / allReviews.length
+        : 0
+      return { ...s, avgRating, reviewCount: allReviews.length, serviceCount: s.services.length }
+    })
+    .sort((a, b) => b.reviewCount - a.reviewCount || b.avgRating - a.avgRating)
+    .slice(0, limit)
+}
+
+export async function getAllTags({ format }: { format?: string } = {}): Promise<{ tag: string; count: number }[]> {
+  const rows = format
+    ? await prisma.$queryRaw<{ tag: string; count: bigint }[]>`
+        SELECT UNNEST(tags) as tag, COUNT(*) as count
+        FROM "Service"
+        WHERE status = 'ACTIVE' AND format = ${format}
+        GROUP BY tag ORDER BY count DESC, tag ASC LIMIT 60
+      `
+    : await prisma.$queryRaw<{ tag: string; count: bigint }[]>`
+        SELECT UNNEST(tags) as tag, COUNT(*) as count
+        FROM "Service"
+        WHERE status = 'ACTIVE'
+        GROUP BY tag ORDER BY count DESC, tag ASC LIMIT 60
+      `
   return rows.map(r => ({ tag: r.tag, count: Number(r.count) }))
 }
 
@@ -202,8 +249,8 @@ export async function getService(id: string) {
 }
 
 export async function getSellerProfile(id: string) {
-  return prisma.user.findUnique({
-    where: { id, role: 'SELLER' },
+  return prisma.user.findFirst({
+    where: { id },
     select: {
       id: true, name: true, avatarUrl: true, innVerified: true,
       companyName: true, bio: true, portfolioUrls: true, createdAt: true,
@@ -250,6 +297,7 @@ export async function updateService(
     tags: formData.get('tags'),
     status: formData.get('status') || 'DRAFT',
   }
+  const fullDescription = (formData.get('fullDescription') as string | null) || null
 
   const parsed = ServiceSchema.safeParse(raw)
   if (!parsed.success) return { errors: parsed.error.flatten().fieldErrors }
@@ -278,6 +326,7 @@ export async function updateService(
     data: {
       title: parsed.data.title,
       description: parsed.data.description,
+      fullDescription: fullDescription,
       price: parsed.data.price,
       priceUnit: parsed.data.priceUnit,
       status: parsed.data.status as 'DRAFT' | 'ACTIVE',

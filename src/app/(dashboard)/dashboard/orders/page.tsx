@@ -83,12 +83,21 @@ export default async function MyOrdersPage() {
                         {order.service.seller.companyName ?? order.service.seller.name}
                         {' · '}
                         {new Date(order.createdAt).toLocaleDateString('ru-RU')}
-                        {order.status === 'COMPLETED' && !order.review && (
-                          <span style={{ color: 'var(--primary)', fontWeight: 600, marginLeft: '8px' }}>
-                            · Оставьте отзыв
-                          </span>
-                        )}
                       </p>
+                      {order.status === 'COMPLETED' && !order.review && (
+                        <div style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '6px',
+                          marginTop: '8px', padding: '6px 12px', borderRadius: '8px',
+                          background: 'linear-gradient(135deg, #fff7ed, #fef3c7)',
+                          border: '1px solid #fed7aa', cursor: 'pointer',
+                        }}>
+                          <span style={{ fontSize: '14px' }}>⭐</span>
+                          <span style={{ fontSize: '12px', fontWeight: 700, color: '#d97706' }}>
+                            Оставьте отзыв — это помогает другим покупателям
+                          </span>
+                          <span style={{ fontSize: '12px', color: '#f59e0b', fontWeight: 700 }}>→</span>
+                        </div>
+                      )}
                     </div>
                     <div style={{ textAlign: 'right', flexShrink: 0 }}>
                       <p style={{ fontSize: '18px', fontWeight: 800, color: 'var(--text)' }}>

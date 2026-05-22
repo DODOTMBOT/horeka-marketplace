@@ -7,7 +7,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (!session || session.role !== 'ADMIN') redirect('/dashboard')
 
   return (
-    <div style={{ display: 'flex', minHeight: '100vh', background: '#f9fafb' }}>
+    <div style={{ display: 'flex', minHeight: '100vh', background: 'var(--paper-2)' }}>
       <AdminPageWrapper>{children}</AdminPageWrapper>
     </div>
   )

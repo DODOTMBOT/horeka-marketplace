@@ -61,3 +61,34 @@ export async function createReview(
   revalidatePath(`/catalog/${order.serviceId}`)
   return { success: true }
 }
+
+export type ReplyState = { error?: string; success?: boolean }
+
+export async function replyToReview(
+  _prev: ReplyState,
+  formData: FormData
+): Promise<ReplyState> {
+  const session = await getSession()
+  if (!session) return { error: 'Не авторизован' }
+
+  const reviewId = formData.get('reviewId') as string
+  const reply = (formData.get('reply') as string)?.trim()
+
+  if (!reply || reply.length < 5) return { error: 'Минимум 5 символов' }
+
+  const review = await prisma.review.findUnique({
+    where: { id: reviewId },
+    include: { service: true },
+  })
+
+  if (!review) return { error: 'Отзыв не найден' }
+  if (review.service.sellerId !== session.userId) return { error: 'Нет доступа' }
+
+  await prisma.review.update({
+    where: { id: reviewId },
+    data: { sellerReply: reply, sellerRepliedAt: new Date() },
+  })
+
+  revalidatePath(`/catalog/${review.serviceId}`)
+  return { success: true }
+}

@@ -12,39 +12,37 @@ export default async function NewServicePage() {
   const categories = await getCategories()
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      {/* Header */}
+    <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
       <header style={{
-        background: 'var(--surface)',
-        boxShadow: '0 2px 12px rgba(174,184,198,0.45)',
+        background: '#fff', borderBottom: '1px solid var(--line)',
         position: 'sticky', top: 0, zIndex: 100,
       }}>
         <div style={{
-          maxWidth: '1200px', margin: '0 auto', padding: '0 24px',
-          height: '64px', display: 'flex', alignItems: 'center', gap: '16px',
+          maxWidth: '1200px', margin: '0 auto', padding: '0 28px',
+          height: '60px', display: 'flex', alignItems: 'center', gap: '10px',
         }}>
-          <Link href="/dashboard" style={{
+          <Link href="/dashboard/services" style={{
             display: 'flex', alignItems: 'center', gap: '6px',
-            fontSize: '14px', color: 'var(--text-muted)', fontWeight: 500,
+            fontSize: '13px', color: 'var(--muted)', fontWeight: 500, textDecoration: 'none',
           }}>
-            ← Кабинет
+            ← Мои услуги
           </Link>
-          <span style={{ color: 'var(--border)' }}>›</span>
-          <Link href="/dashboard/services" style={{ fontSize: '14px', color: 'var(--text-muted)', fontWeight: 500 }}>
-            Мои услуги
-          </Link>
-          <span style={{ color: 'var(--border)' }}>›</span>
-          <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text)' }}>Новая услуга</span>
+          <span style={{ color: 'var(--line)' }}>›</span>
+          <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink)' }}>Новое объявление</span>
         </div>
       </header>
 
-      <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 24px' }}>
+      <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '36px 28px 60px' }}>
         <div style={{ marginBottom: '32px' }}>
-          <h1 style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text)', marginBottom: '6px' }}>
-            Создать услугу
+          <h1 style={{
+            fontFamily: 'var(--ff-display)', fontWeight: 800,
+            fontSize: '36px', color: 'var(--ink)',
+            letterSpacing: '-0.04em', marginBottom: '6px',
+          }}>
+            Новое объявление
           </h1>
-          <p style={{ color: 'var(--text-muted)' }}>
-            Заполните карточку — она появится в каталоге для покупателей
+          <p style={{ color: 'var(--muted)', fontSize: '14px' }}>
+            Заполните карточку — она появится в каталоге сразу после публикации
           </p>
         </div>
 

@@ -32,7 +32,7 @@ export default async function DashboardPage() {
     getDashboardStats(),
   ])
 
-  const roleLabel = session.role === 'BUYER' ? 'Покупатель' : session.role === 'SELLER' ? 'Поставщик' : 'Администратор'
+  const roleLabel = session.role === 'BUYER' ? 'Покупатель' : session.role === 'SELLER' ? 'Исполнитель' : 'Администратор'
   const isSeller = session.role === 'SELLER' || session.role === 'ADMIN'
 
   return (

@@ -28,7 +28,7 @@ export default function ContactButton({ sellerId, serviceId }: { sellerId: strin
       marginTop: '8px',
       transition: 'background 0.15s',
     }}>
-      {pending ? 'Открываем чат...' : '💬 Написать поставщику'}
+      {pending ? 'Открываем чат...' : '💬 Написать исполнителю'}
     </button>
   )
 }

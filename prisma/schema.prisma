@@ -56,6 +56,15 @@ model User {
   bio           String?
   portfolioUrls String[]
 
+  // Business / payout details
+  ogrn            String?
+  kpp             String?
+  legalAddress    String?
+  bankAccount     String?
+  bankBik         String?
+  bankName        String?
+  bankCorrAccount String?
+
   blocked   Boolean  @default(false)
 
   createdAt DateTime @default(now())
@@ -78,16 +87,19 @@ model Category {
   slug     String    @unique
   name     String
   icon     String?
+  format   String    @default("service")
   services Service[]
 }
 
 // ─── SERVICES ──────────────────────────────────────────────────────────────
 
 model Service {
-  id          String        @id @default(cuid())
-  title       String
-  description String        @db.Text
-  price       Decimal       @db.Decimal(12, 2)
+  id              String        @id @default(cuid())
+  title           String
+  description     String        @db.Text
+  fullDescription String?       @db.Text
+  price           Decimal       @db.Decimal(12, 2)
+  format      String        @default("service")
   priceUnit   String        @default("разово")
   status      ServiceStatus @default(DRAFT)
   images      String[]
@@ -126,6 +138,12 @@ model Order {
   serviceId String
   service   Service @relation(fields: [serviceId], references: [id])
 
+  paymentId String?
+  paid      Boolean @default(false)
+
+  sellerPaid   Boolean   @default(false)
+  sellerPaidAt DateTime?
+
   review Review?
 
   createdAt DateTime @default(now())
@@ -138,6 +156,9 @@ model Review {
   id      String @id @default(cuid())
   rating  Int
   comment String @db.Text
+
+  sellerReply     String?  @db.Text
+  sellerRepliedAt DateTime?
 
   authorId  String
   author    User    @relation("ReviewAuthor", fields: [authorId], references: [id])
@@ -215,6 +236,14 @@ model Message {
   sender         User         @relation("MessageSender", fields: [senderId], references: [id])
   body           String       @db.Text
   createdAt      DateTime     @default(now())
+}
+
+// ─── SITE CONFIG ───────────────────────────────────────────────────────────
+
+model SiteConfig {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
 }
 
 // ─── ACTIVITY LOG ──────────────────────────────────────────────────────────

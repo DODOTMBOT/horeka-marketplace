@@ -1,4 +1,5 @@
 import AdminNav from '../AdminNav'
+import AdminTopbar from '../AdminTopbar'
 import { getAdminLogs, getAdminMultiAccounts } from '@/actions/admin'
 import Link from 'next/link'
 
@@ -89,28 +90,26 @@ export default async function AdminLogsPage({
   return (
     <>
       <AdminNav active="/admin/logs" />
-      <main style={{ flex: 1, overflowY: 'auto', background: '#f9fafb' }}>
+      <main className="admin-main">
+        <AdminTopbar
+          title="Логи"
+          subtitle="Аудит действий пользователей"
+          actions={
+            <div className="admin-tabs">
+              <Link href="/admin/logs?tab=logs" className={`admin-tab${tab === 'logs' ? ' active' : ''}`}>Журнал</Link>
+              <Link href="/admin/logs?tab=multi" className={`admin-tab${tab === 'multi' ? ' active' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
+                  <circle cx="9" cy="7" r="4"/>
+                  <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
+                </svg>
+                Мультиаккаунты
+              </Link>
+            </div>
+          }
+        />
 
-        {/* Topbar */}
-        <div style={{ padding: '16px 28px', background: '#fff', borderBottom: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-          <div>
-            <h1 style={{ fontSize: '16px', fontWeight: 700, color: '#111827', letterSpacing: '-0.2px' }}>Логи активности</h1>
-            <p style={{ fontSize: '12px', color: '#9ca3af', marginTop: '2px' }}>Аудит действий пользователей</p>
-          </div>
-          <div style={{ display: 'flex', gap: '6px' }}>
-            <Link href="/admin/logs?tab=logs" style={tabStyle(tab === 'logs')}>Журнал</Link>
-            <Link href="/admin/logs?tab=multi" style={{ ...tabStyle(tab === 'multi'), display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/>
-                <circle cx="9" cy="7" r="4"/>
-                <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
-              </svg>
-              Мультиаккаунты
-            </Link>
-          </div>
-        </div>
-
-        <div style={{ padding: '20px 28px' }}>
+          <div style={{ padding: '20px 28px' }}>
           {tab === 'multi' ? (
             <MultiAccountsTab />
           ) : (
@@ -290,78 +289,62 @@ async function LogsTab({
         })}
       </div>
 
-      {/* Table */}
-      <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: '8px', overflow: 'hidden' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+      <div className="admin-table-wrap">
+        <table className="admin-table">
           <thead>
-            <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
-              {['Время (МСК)', 'Пользователь', 'Действие', 'Детали', 'IP'].map(h => (
-                <th key={h} style={{
-                  padding: '9px 14px', textAlign: 'left',
-                  fontSize: '11px', fontWeight: 600, color: '#6b7280',
-                  letterSpacing: '0.05em', textTransform: 'uppercase',
-                  background: '#f9fafb', whiteSpace: 'nowrap',
-                }}>{h}</th>
-              ))}
+            <tr>
+              {['Время (МСК)', 'Пользователь', 'Действие', 'Детали', 'IP'].map(h => <th key={h}>{h}</th>)}
             </tr>
           </thead>
           <tbody>
-            {logs.map((log, i) => (
-              <tr key={log.id} style={{ borderBottom: i < logs.length - 1 ? '1px solid #f3f4f6' : 'none' }}>
-                <td style={{ padding: '10px 14px', whiteSpace: 'nowrap', color: '#9ca3af', fontSize: '12px' }}>
+            {logs.map(log => (
+              <tr key={log.id}>
+                <td style={{ whiteSpace: 'nowrap', color: '#bbb', fontSize: '11px' }}>
                   {new Date(log.createdAt).toLocaleDateString('ru-RU')}{' '}
-                  <span style={{ color: '#d1d5db' }}>
+                  <span style={{ color: '#ddd' }}>
                     {new Date(log.createdAt).toLocaleTimeString('ru-RU', { timeZone: 'Europe/Moscow', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
                   </span>
                 </td>
-                <td style={{ padding: '10px 14px' }}>
+                <td>
                   {log.user ? (
                     <Link href={buildHref({ user: log.user.id, page: '1' })} style={{ textDecoration: 'none' }}>
-                      <div style={{ fontWeight: 600, color: '#111827', fontSize: '13px' }}>{log.user.name}</div>
-                      <div style={{ fontSize: '11px', color: '#9ca3af' }}>{log.user.email}</div>
+                      <div style={{ fontWeight: 700, color: '#111', fontSize: '13px' }}>{log.user.name}</div>
+                      <div style={{ fontSize: '10px', color: '#aaa' }}>{log.user.email}</div>
                     </Link>
                   ) : (
-                    <span style={{ color: '#d1d5db', fontSize: '12px' }}>—</span>
+                    <span style={{ color: '#ddd', fontSize: '12px' }}>—</span>
                   )}
                 </td>
-                <td style={{ padding: '10px 14px' }}>
-                  <ActionBadge action={log.action} />
-                </td>
-                <td style={{ padding: '10px 14px', maxWidth: '280px' }}>
+                <td><ActionBadge action={log.action} /></td>
+                <td style={{ maxWidth: '280px' }}>
                   {log.target && (
-                    <div style={{ fontFamily: 'monospace', fontSize: '11px', color: '#6b7280', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontFamily: 'monospace', fontSize: '10px', color: '#888', marginBottom: '2px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                       {log.target}
                     </div>
                   )}
                   <MetaPreview meta={log.meta} />
                 </td>
-                <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontSize: '11px', color: '#9ca3af', whiteSpace: 'nowrap' }}>
-                  <Link href={`/admin/logs?tab=multi`} title="Посмотреть все аккаунты с этого IP" style={{ color: '#9ca3af', textDecoration: 'none' }}>
+                <td style={{ fontFamily: 'monospace', fontSize: '10px', color: '#bbb', whiteSpace: 'nowrap' }}>
+                  <Link href="/admin/logs?tab=multi" title="IP-адрес" style={{ color: '#bbb', textDecoration: 'none' }}>
                     {log.ip ?? '—'}
                   </Link>
                 </td>
               </tr>
             ))}
             {logs.length === 0 && (
-              <tr>
-                <td colSpan={5} style={{ padding: '48px', textAlign: 'center', color: '#9ca3af', fontSize: '13px' }}>
-                  Логов нет
-                </td>
-              </tr>
+              <tr><td colSpan={5} style={{ padding: '48px', textAlign: 'center', color: '#bbb', fontSize: '13px' }}>Логов нет</td></tr>
             )}
           </tbody>
         </table>
       </div>
 
-      {/* Pagination */}
       {pages > 1 && (
         <div style={{ display: 'flex', justifyContent: 'center', gap: '4px', marginTop: '16px' }}>
           {Array.from({ length: Math.min(pages, 10) }, (_, i) => i + 1).map(p => (
             <Link key={p} href={buildHref({ page: String(p) })} style={{
-              padding: '6px 10px', borderRadius: '5px', fontSize: '12px', fontWeight: 600,
-              background: p === page ? '#111827' : '#fff',
-              color: p === page ? '#fff' : '#6b7280',
-              border: '1px solid #e5e7eb', textDecoration: 'none',
+              padding: '7px 11px', borderRadius: '4px', fontSize: '12px', fontWeight: 700,
+              background: p === page ? '#111' : '#fff', color: p === page ? '#fff' : '#888',
+              border: `1.5px solid ${p === page ? '#111' : '#e0e0e0'}`, textDecoration: 'none',
             }}>
               {p}
             </Link>

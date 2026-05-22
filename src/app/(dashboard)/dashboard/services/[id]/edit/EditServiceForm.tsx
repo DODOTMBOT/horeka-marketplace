@@ -7,10 +7,7 @@ import dynamic from 'next/dynamic'
 
 const RichEditor = dynamic(() => import('@/components/RichEditor'), { ssr: false })
 
-const TIER_LABELS: Record<string, string> = { basic: 'Базовый', standard: 'Стандарт', premium: 'Премиум' }
-
-function PackageEditor({ packages, onChange }: { packages: ServicePackage[]; onChange: (p: ServicePackage[]) => void }) {
-  const tiers: ('basic' | 'standard' | 'premium')[] = ['basic', 'standard', 'premium']
+function PackageEditor({ packages, tiers, onChange }: { packages: ServicePackage[]; tiers: { key: string; label: string }[]; onChange: (p: ServicePackage[]) => void }) {
   const [active, setActive] = useState(0)
   const pkg = packages[active]
   const update = (field: keyof ServicePackage, value: string | number) =>
@@ -24,13 +21,13 @@ function PackageEditor({ packages, onChange }: { packages: ServicePackage[]; onC
     <div style={{ border: '1px solid var(--border)', borderRadius: 'var(--radius-sm)', overflow: 'hidden' }}>
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border)' }}>
         {tiers.map((tier, i) => (
-          <button key={tier} type="button" onClick={() => setActive(i)} style={{
+          <button key={tier.key} type="button" onClick={() => setActive(i)} style={{
             flex: 1, padding: '10px 8px', fontSize: '13px', fontWeight: 600,
             color: active === i ? 'var(--primary)' : 'var(--text-muted)',
             background: active === i ? 'var(--primary-light)' : 'transparent',
             borderBottom: active === i ? '2px solid var(--primary)' : '2px solid transparent',
           }}>
-            {TIER_LABELS[tier]}
+            {tier.label}
           </button>
         ))}
       </div>
@@ -53,19 +50,19 @@ type Props = {
     packages: ServicePackage[] | null; categoryId: string
   }
   categories: { id: string; name: string; icon: string | null }[]
+  packageTiers: { key: string; label: string }[]
+  priceUnits: string[]
 }
 
-export default function EditServiceForm({ service, categories }: Props) {
+export default function EditServiceForm({ service, categories, packageTiers, priceUnits }: Props) {
   const [state, action, pending] = useActionState(updateService, {} as CreateServiceState)
   const [description, setDescription] = useState(service.description)
   const [imageUrls, setImageUrls] = useState<string[]>(service.images)
   const [uploading, setUploading] = useState(false)
   const [usePackages, setUsePackages] = useState(!!service.packages?.length)
-  const [packages, setPackages] = useState<ServicePackage[]>(service.packages ?? [
-    { tier: 'basic', name: 'Базовый', description: '', price: 0, deliveryDays: 7 },
-    { tier: 'standard', name: 'Стандарт', description: '', price: 0, deliveryDays: 14 },
-    { tier: 'premium', name: 'Премиум', description: '', price: 0, deliveryDays: 21 },
-  ])
+  const [packages, setPackages] = useState<ServicePackage[]>(
+    service.packages ?? packageTiers.map((t, i) => ({ tier: t.key, name: t.label, description: '', price: 0, deliveryDays: (i + 1) * 7 }))
+  )
   const fileRef = useRef<HTMLInputElement>(null)
 
   const handleImages = async (files: FileList | null) => {
@@ -149,18 +146,20 @@ export default function EditServiceForm({ service, categories }: Props) {
           <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: 'var(--radius)', padding: '24px', boxShadow: 'var(--shadow-card)' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
               <h2 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text)', margin: 0 }}>Цена</h2>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
-                <input type="checkbox" checked={usePackages} onChange={e => setUsePackages(e.target.checked)} />
-                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>3 пакета</span>
-              </label>
+              {packageTiers.length > 0 && (
+                <label style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}>
+                  <input type="checkbox" checked={usePackages} onChange={e => setUsePackages(e.target.checked)} />
+                  <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-muted)' }}>{packageTiers.length} пакета</span>
+                </label>
+              )}
             </div>
             {usePackages ? (
-              <PackageEditor packages={packages} onChange={setPackages} />
+              <PackageEditor packages={packages} tiers={packageTiers} onChange={setPackages} />
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                 <input type="number" name="price" defaultValue={service.price} required min="0" style={inp} />
                 <select name="priceUnit" defaultValue={service.priceUnit} style={{ ...inp, cursor: 'pointer' }}>
-                  {['разово', 'в месяц', 'в час', 'за кг', 'за единицу', 'по запросу'].map(u => <option key={u} value={u}>{u}</option>)}
+                  {priceUnits.map(u => <option key={u} value={u}>{u}</option>)}
                 </select>
               </div>
             )}

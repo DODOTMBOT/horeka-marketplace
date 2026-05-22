@@ -3,8 +3,11 @@ import { type Metadata } from 'next'
 import Navbar from '@/components/Navbar'
 import ServiceCard from '@/components/ServiceCard'
 import TagsCloud from './TagsCloud'
+import SearchAutocomplete from '@/components/SearchAutocomplete'
+import FormatPicker from './FormatPicker'
 import { getServices, getAllTags } from '@/actions/services'
 import { getFavoriteIds } from '@/actions/favorites'
+import { getCatalogConfig } from '@/lib/siteConfig'
 import { prisma } from '@/lib/prisma'
 
 export async function generateMetadata({ searchParams }: { searchParams: Promise<SearchParams> }): Promise<Metadata> {
@@ -12,16 +15,18 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   if (params.search) return { title: `Поиск: ${params.search}`, description: `Результаты поиска по запросу "${params.search}" в каталоге Unit One` }
   if (params.category) return { title: `Каталог — ${params.category}`, description: `Услуги категории ${params.category} на Unit One` }
   if (params.tag) return { title: `#${params.tag} — каталог`, description: `Услуги с тегом ${params.tag} на Unit One` }
+  if (params.format) {
+    const label = params.format === 'digital' ? 'Инструменты' : params.format === 'service' ? 'Специалисты' : 'Проекты'
+    return { title: `${label} — каталог`, description: 'Услуги на Unit One' }
+  }
   return { title: 'Каталог', description: 'Услуги специалистов, поставщики продуктов и оборудования для ресторанов, отелей и кафе на Unit One' }
 }
 
-const PRICE_UNITS = [
-  { value: 'разово', label: 'Разово' },
-  { value: 'в месяц', label: 'В месяц' },
-  { value: 'в час', label: 'В час' },
-  { value: 'за кг', label: 'За кг' },
-  { value: 'за единицу', label: 'За единицу' },
-  { value: 'по запросу', label: 'По запросу' },
+const SORT_OPTIONS = [
+  { value: 'newest',     label: 'Новые' },
+  { value: 'popular',    label: 'Популярные' },
+  { value: 'price_asc',  label: 'Цена ↑' },
+  { value: 'price_desc', label: 'Цена ↓' },
 ]
 
 type SearchParams = {
@@ -29,36 +34,113 @@ type SearchParams = {
   search?: string
   priceMin?: string
   priceMax?: string
-  priceUnit?: string
   tag?: string
-  verified?: string
   page?: string
+  sort?: string
+  format?: string
+}
+
+function Pagination({ page, pages, buildUrl }: { page: number; pages: number; buildUrl: (o: Partial<SearchParams>) => string }) {
+  if (pages <= 1) return null
+  const items: (number | 'ellipsis')[] = []
+  if (pages <= 7) {
+    for (let i = 1; i <= pages; i++) items.push(i)
+  } else {
+    items.push(1)
+    if (page > 3) items.push('ellipsis')
+    for (let i = Math.max(2, page - 1); i <= Math.min(pages - 1, page + 1); i++) items.push(i)
+    if (page < pages - 2) items.push('ellipsis')
+    items.push(pages)
+  }
+  return (
+    <div style={{ display: 'flex', gap: '4px', justifyContent: 'center', alignItems: 'center', marginTop: '32px' }}>
+      {page > 1 && (
+        <Link href={buildUrl({ page: String(page - 1) })} style={{
+          padding: '8px 14px', borderRadius: 'var(--r-sm)', fontSize: '13px', fontWeight: 700,
+          background: 'var(--paper-2)', color: 'var(--ink)', border: '1.5px solid var(--line)', textDecoration: 'none',
+        }}>← Назад</Link>
+      )}
+      {items.map((item, idx) =>
+        item === 'ellipsis' ? (
+          <span key={`e${idx}`} style={{ padding: '8px 6px', fontSize: '13px', color: 'var(--muted)' }}>…</span>
+        ) : (
+          <Link key={item} href={buildUrl({ page: String(item) })} style={{
+            width: '36px', height: '36px', borderRadius: 'var(--r-sm)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '13px', fontWeight: item === page ? 800 : 500,
+            background: item === page ? 'var(--fmt-accent)' : 'var(--paper-2)',
+            color: item === page ? 'var(--fmt-text)' : 'var(--muted)',
+            border: `1.5px solid ${item === page ? 'var(--fmt-accent)' : 'var(--line)'}`,
+            textDecoration: 'none',
+            transition: 'all 0.15s',
+          }}>{item}</Link>
+        )
+      )}
+      {page < pages && (
+        <Link href={buildUrl({ page: String(page + 1) })} style={{
+          padding: '8px 14px', borderRadius: 'var(--r-sm)', fontSize: '13px', fontWeight: 700,
+          background: 'var(--paper-2)', color: 'var(--ink)', border: '1.5px solid var(--line)', textDecoration: 'none',
+        }}>Вперёд →</Link>
+      )}
+    </div>
+  )
 }
 
 export default async function CatalogPage({ searchParams }: { searchParams: Promise<SearchParams> }) {
   const params = await searchParams
+  const activeFormat = params.format
+
+  const catalogCfg = await getCatalogConfig()
+
+  // Resolve accent from admin-configured format block
+  const activeBlock = catalogCfg.formats.find(f => f.key === activeFormat)
+  const accentBg   = activeBlock?.bgColor  ?? 'var(--ink)'
+  const accentText = activeBlock?.textColor === 'light' ? '#fff' : '#0F0F12'
+
+  let services: Awaited<ReturnType<typeof getServices>>['services'] = []
+  let total = 0
+  let pages = 0
+  let categories: { id: string; slug: string; name: string; icon: string | null; format: string }[] = []
+  let allTags: { tag: string; count: number }[] = []
+  let favoriteIds: string[] = []
+
+  if (activeFormat) {
+    const page = Number(params.page) || 1
+    const minPrice = params.priceMin ? Number(params.priceMin) : undefined
+    const maxPrice = params.priceMax ? Number(params.priceMax) : undefined
+    const sort = (params.sort as 'newest' | 'price_asc' | 'price_desc' | 'popular') || 'newest'
+
+    const results = await Promise.all([
+      getServices({
+        categorySlug: params.category,
+        search: params.search,
+        minPrice,
+        maxPrice,
+        tag: params.tag,
+        page,
+        sort,
+        format: activeFormat,
+      }),
+      prisma.category.findMany({
+        where: { format: activeFormat },
+        orderBy: { name: 'asc' },
+        select: { id: true, slug: true, name: true, icon: true, format: true },
+      }),
+      getAllTags({ format: activeFormat }),
+      getFavoriteIds(),
+    ])
+    ;({ services, total, pages } = results[0])
+    categories = results[1]
+    allTags    = results[2]
+    favoriteIds = results[3]
+  }
+
   const page = Number(params.page) || 1
-  const minPrice = params.priceMin ? Number(params.priceMin) : undefined
-  const maxPrice = params.priceMax ? Number(params.priceMax) : undefined
-  const innVerified = params.verified === '1'
+  const sort = (params.sort as 'newest' | 'price_asc' | 'price_desc' | 'popular') || 'newest'
+  const activeFiltersCount = [
+    params.category, params.search, params.priceMin, params.priceMax, params.tag,
+  ].filter(Boolean).length
 
-  const [{ services, total, pages }, categories, allTags, favoriteIds] = await Promise.all([
-    getServices({
-      categorySlug: params.category,
-      search: params.search,
-      minPrice,
-      maxPrice,
-      priceUnit: params.priceUnit,
-      tag: params.tag,
-      innVerified: innVerified || undefined,
-      page,
-    }),
-    prisma.category.findMany({ orderBy: { name: 'asc' } }),
-    getAllTags(),
-    getFavoriteIds(),
-  ])
-
-  // Serialisable makeUrl — passed to client component as plain function result (href strings)
   const buildUrl = (overrides: Partial<SearchParams>) => {
     const merged = { ...params, page: '1', ...overrides }
     const q = Object.entries(merged)
@@ -68,304 +150,329 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
     return q ? `/catalog?${q}` : '/catalog'
   }
 
-  // For TagsCloud client component we pass a serialisable map of href strings
-  const tagHrefs = Object.fromEntries(
-    allTags.map(({ tag }) => [tag, buildUrl({ tag })])
-  )
+  const tagHrefs    = Object.fromEntries(allTags.map(({ tag }) => [tag, buildUrl({ tag })]))
   const clearTagHref = buildUrl({ tag: '' })
 
-  const activeFiltersCount = [
-    params.category, params.search, params.priceMin, params.priceMax,
-    params.priceUnit, params.tag, innVerified ? '1' : undefined,
-  ].filter(Boolean).length
+  const hiddenFields: Record<string, string> = {}
+  if (params.format)   hiddenFields.format   = params.format
+  if (params.category) hiddenFields.category = params.category
+  if (params.priceMin) hiddenFields.priceMin = params.priceMin
+  if (params.priceMax) hiddenFields.priceMax = params.priceMax
+  if (params.tag)      hiddenFields.tag      = params.tag
+  if (params.sort)     hiddenFields.sort     = params.sort
 
-  const inputCls: React.CSSProperties = {
-    width: '100%', padding: '8px 10px', borderRadius: '6px',
-    border: '1.5px solid var(--border)', background: 'var(--bg)',
-    fontSize: '13px', color: 'var(--text)', outline: 'none',
-  }
+  // Thin accent strip color for sidebar labels
+  const accentLight = `${accentBg}22`  // 13% opacity tint
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <Navbar />
+    <>
+      <style>{`
+        @keyframes contentReveal {
+          from { opacity: 0; transform: translateY(20px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .catalog-content { animation: contentReveal 0.45s cubic-bezier(0.22,1,0.36,1) both; }
 
-      {/* Full-width container */}
-      <div style={{ padding: '20px 32px' }}>
+        /* Category chips */
+        .cat-chip {
+          display: inline-flex; align-items: center; gap: 5px;
+          padding: 7px 14px; border-radius: 999px;
+          font-size: 12px; font-weight: 600; text-decoration: none;
+          border: 1.5px solid var(--line); background: var(--paper-2);
+          color: var(--muted); transition: all 0.15s; white-space: nowrap;
+          font-family: var(--ff-display); letter-spacing: -0.01em;
+        }
+        .cat-chip:hover { border-color: var(--fmt-accent); color: var(--ink); background: #fff; }
+        .cat-chip.active {
+          background: var(--fmt-accent); border-color: transparent;
+          color: var(--fmt-text); font-weight: 800;
+          box-shadow: 0 4px 14px color-mix(in srgb, var(--fmt-accent) 35%, transparent);
+        }
 
-        {/* Mobile category scroll */}
-        <div className="mobile-only" style={{ display: 'none', overflowX: 'auto', marginBottom: '16px', paddingBottom: '4px' }}>
-          <div style={{ display: 'flex', gap: '8px', width: 'max-content' }}>
-            <Link href={buildUrl({ category: '' })} style={{
-              padding: '6px 14px', borderRadius: '50px', fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap',
-              background: !params.category ? 'var(--primary)' : '#fff', color: !params.category ? '#fff' : 'var(--text-muted)',
-              border: '1px solid var(--border)', textDecoration: 'none',
-            }}>Все</Link>
-            {categories.map(cat => (
-              <Link key={cat.id} href={buildUrl({ category: cat.slug })} style={{
-                padding: '6px 14px', borderRadius: '50px', fontSize: '13px', fontWeight: 600, whiteSpace: 'nowrap',
-                background: params.category === cat.slug ? 'var(--primary)' : '#fff',
-                color: params.category === cat.slug ? '#fff' : 'var(--text-muted)',
-                border: '1px solid var(--border)', textDecoration: 'none',
-              }}>{cat.icon} {cat.name}</Link>
-            ))}
-          </div>
-        </div>
+        /* Sort chips */
+        .sort-chip {
+          padding: 7px 12px; font-size: 12px; font-weight: 600;
+          text-decoration: none; white-space: nowrap; border-radius: var(--r-sm);
+          color: var(--muted); background: transparent; transition: all 0.15s;
+          font-family: var(--ff-display); letter-spacing: -0.01em;
+        }
+        .sort-chip:hover { color: var(--ink); background: rgba(0,0,0,0.05); }
+        .sort-chip.active {
+          background: var(--fmt-accent); color: var(--fmt-text); font-weight: 800;
+          box-shadow: 0 2px 8px color-mix(in srgb, var(--fmt-accent) 30%, transparent);
+        }
 
-        <div className="layout-with-sidebar">
+        /* Price inputs */
+        .price-input {
+          width: 100%; padding: 10px 12px; border-radius: var(--r-md);
+          border: 1.5px solid var(--line); background: var(--paper-2);
+          font-size: 14px; font-weight: 600; color: var(--ink);
+          outline: none; text-align: center; font-family: var(--ff-display);
+          transition: border-color 0.15s, background 0.15s;
+        }
+        .price-input:focus { border-color: var(--fmt-accent); background: #fff; }
+        .price-input::placeholder { color: var(--muted); font-weight: 400; }
 
-          {/* ── Sidebar ── */}
-          <aside className="sidebar-hide" style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+        /* Price submit button */
+        .price-btn {
+          flex-shrink: 0; width: 40px; height: 40px;
+          border-radius: var(--r-md);
+          background: var(--fmt-accent); color: var(--fmt-text);
+          border: none; cursor: pointer; font-size: 16px;
+          display: flex; align-items: center; justify-content: center;
+          transition: opacity 0.15s, transform 0.15s;
+        }
+        .price-btn:hover { opacity: 0.85; transform: scale(1.05); }
 
-            {/* Поиск */}
-            <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
-              <div style={{ padding: '11px 16px', borderBottom: '1px solid var(--border)', background: '#fafafa' }}>
-                <p style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Поиск</p>
-              </div>
-              <div style={{ padding: '10px 12px' }}>
-                <form method="get" action="/catalog">
-                  {params.category && <input type="hidden" name="category" value={params.category} />}
-                  {params.priceMin && <input type="hidden" name="priceMin" value={params.priceMin} />}
-                  {params.priceMax && <input type="hidden" name="priceMax" value={params.priceMax} />}
-                  {params.priceUnit && <input type="hidden" name="priceUnit" value={params.priceUnit} />}
-                  {params.tag && <input type="hidden" name="tag" value={params.tag} />}
-                  {params.verified && <input type="hidden" name="verified" value={params.verified} />}
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <input type="text" name="search" defaultValue={params.search} placeholder="Название, тег..." style={inputCls} />
-                    <button type="submit" style={{
-                      padding: '8px 12px', borderRadius: '6px',
-                      background: 'var(--primary)', color: '#fff', fontSize: '13px', fontWeight: 700,
-                      border: 'none', cursor: 'pointer', flexShrink: 0,
-                    }}>→</button>
-                  </div>
-                </form>
-              </div>
-            </div>
+        /* Sidebar label accent line */
+        .sidebar-label {
+          font-family: var(--ff-mono); font-size: 10px; font-weight: 700;
+          color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase;
+          margin-bottom: 10px;
+          display: flex; align-items: center; gap: 7px;
+        }
+        .sidebar-label::before {
+          content: ''; display: block;
+          width: 12px; height: 2px; border-radius: 1px;
+          background: var(--fmt-accent); flex-shrink: 0;
+        }
 
-            {/* Категория */}
-            <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
-              <div style={{ padding: '11px 16px', borderBottom: '1px solid var(--border)', background: '#fafafa' }}>
-                <p style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Категория</p>
-              </div>
-              <div style={{ padding: '4px 0' }}>
-                {[{ slug: '', name: 'Все категории', icon: null }, ...categories].map(cat => {
-                  const active = cat.slug === '' ? !params.category : params.category === cat.slug
-                  return (
-                    <Link key={cat.slug || '__all'} href={buildUrl({ category: cat.slug })} style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '8px 16px', fontSize: '13px', fontWeight: active ? 600 : 400,
-                      color: active ? 'var(--primary)' : 'var(--text-muted)',
-                      background: active ? 'var(--primary-light)' : 'transparent',
-                      textDecoration: 'none', transition: 'background 0.12s',
-                    }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        {cat.icon && <span style={{ fontSize: '14px', lineHeight: 1 }}>{cat.icon}</span>}
-                        <span>{cat.name}</span>
-                      </div>
-                      {active && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>}
-                    </Link>
-                  )
-                })}
-              </div>
-            </div>
+        /* Tag cloud card header accent */
+        .tag-cloud-header {
+          font-family: var(--ff-mono); font-size: 10px; font-weight: 700;
+          color: var(--muted); letter-spacing: 0.1em; text-transform: uppercase;
+          margin-bottom: 14px;
+          display: flex; align-items: center; gap: 7px;
+        }
+        .tag-cloud-header::before {
+          content: ''; display: block;
+          width: 12px; height: 2px; border-radius: 1px;
+          background: var(--fmt-accent); flex-shrink: 0;
+        }
 
-            {/* Цена */}
-            <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
-              <div style={{ padding: '11px 16px', borderBottom: '1px solid var(--border)', background: '#fafafa' }}>
-                <p style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Цена, ₽</p>
-              </div>
-              <div style={{ padding: '12px' }}>
-                <form method="get" action="/catalog">
-                  {params.category && <input type="hidden" name="category" value={params.category} />}
-                  {params.search && <input type="hidden" name="search" value={params.search} />}
-                  {params.priceUnit && <input type="hidden" name="priceUnit" value={params.priceUnit} />}
-                  {params.tag && <input type="hidden" name="tag" value={params.tag} />}
-                  {params.verified && <input type="hidden" name="verified" value={params.verified} />}
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <input type="number" name="priceMin" defaultValue={params.priceMin} placeholder="от"
-                      min="0" style={{ ...inputCls, textAlign: 'center' }} />
-                    <span style={{ color: '#d1d5db', flexShrink: 0, fontSize: '12px' }}>—</span>
-                    <input type="number" name="priceMax" defaultValue={params.priceMax} placeholder="до"
-                      min="0" style={{ ...inputCls, textAlign: 'center' }} />
-                    <button type="submit" style={{
-                      padding: '8px 10px', borderRadius: '6px',
-                      background: 'var(--primary)', color: '#fff', fontSize: '13px', fontWeight: 700,
-                      border: 'none', cursor: 'pointer', flexShrink: 0,
-                    }}>→</button>
-                  </div>
-                  {(params.priceMin || params.priceMax) && (
-                    <Link href={buildUrl({ priceMin: '', priceMax: '' })} style={{
-                      fontSize: '11px', color: '#9ca3af', marginTop: '7px', display: 'block', textDecoration: 'none',
-                    }}>× сбросить цену</Link>
-                  )}
-                </form>
-              </div>
-            </div>
+        /* Count number accent */
+        .count-num { color: var(--fmt-accent); }
+      `}</style>
 
-            {/* Тип цены */}
-            <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
-              <div style={{ padding: '11px 16px', borderBottom: '1px solid var(--border)', background: '#fafafa' }}>
-                <p style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Тип цены</p>
-              </div>
-              <div style={{ padding: '4px 0' }}>
-                {[{ value: '', label: 'Любой' }, ...PRICE_UNITS].map(u => {
-                  const active = u.value === '' ? !params.priceUnit : params.priceUnit === u.value
-                  return (
-                    <Link key={u.value || '__any'} href={buildUrl({ priceUnit: u.value })} style={{
-                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                      padding: '8px 16px', fontSize: '13px', fontWeight: active ? 600 : 400,
-                      color: active ? 'var(--primary)' : 'var(--text-muted)',
-                      background: active ? 'var(--primary-light)' : 'transparent',
-                      textDecoration: 'none', transition: 'background 0.12s',
-                    }}>
-                      {u.label}
-                      {active && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="9 18 15 12 9 6"/></svg>}
-                    </Link>
-                  )
-                })}
-              </div>
-            </div>
+      <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
+        <Navbar />
 
-            {/* Продавец */}
-            <div style={{ background: '#fff', border: '1px solid var(--border)', borderRadius: '8px', overflow: 'hidden' }}>
-              <div style={{ padding: '11px 16px', borderBottom: '1px solid var(--border)', background: '#fafafa' }}>
-                <p style={{ fontSize: '11px', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Продавец</p>
-              </div>
-              <div style={{ padding: '10px 14px' }}>
-                <Link href={buildUrl({ verified: innVerified ? '' : '1' })} style={{
-                  display: 'flex', alignItems: 'center', gap: '10px', textDecoration: 'none',
-                }}>
-                  <div style={{
-                    width: '17px', height: '17px', borderRadius: '4px', flexShrink: 0,
-                    border: `2px solid ${innVerified ? 'var(--primary)' : '#d1d5db'}`,
-                    background: innVerified ? 'var(--primary)' : '#fff',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    transition: 'all 0.12s',
-                  }}>
-                    {innVerified && (
-                      <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12"/>
-                      </svg>
-                    )}
-                  </div>
-                  <span style={{ fontSize: '13px', color: innVerified ? 'var(--primary)' : '#6b7280', fontWeight: innVerified ? 600 : 400 }}>
-                    ИНН верифицирован
-                  </span>
-                </Link>
-              </div>
-            </div>
-
-            {/* Сброс */}
-            {activeFiltersCount > 0 && (
-              <Link href="/catalog" style={{
-                display: 'block', textAlign: 'center', padding: '9px 16px',
-                borderRadius: '8px', fontSize: '12px', fontWeight: 600,
-                color: '#dc2626', background: '#fef2f2', border: '1px solid #fecaca',
-                textDecoration: 'none',
-              }}>
-                Сбросить все фильтры ({activeFiltersCount})
-              </Link>
-            )}
-          </aside>
-
-          {/* ── Основной контент ── */}
-          <div>
-            {/* Заголовок */}
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+        {/* ── Hero ── */}
+        <section style={{ background: 'var(--paper)', padding: '44px 28px 40px' }}>
+          <div style={{ maxWidth: '1280px', margin: '0 auto' }}>
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '16px', marginBottom: '32px' }}>
               <div>
-                <h1 style={{ fontSize: '20px', fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.4px' }}>
-                  {params.tag
-                    ? `#${params.tag}`
-                    : params.category
-                      ? (categories.find(c => c.slug === params.category)?.name ?? 'Каталог')
-                      : 'Каталог услуг'}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '10px' }}>
+                  <span style={{ fontFamily: 'var(--ff-mono)', fontSize: '10px', fontWeight: 600, color: 'var(--muted)', letterSpacing: '0.08em' }}>UNIT ONE</span>
+                  <span style={{ color: 'var(--muted)', fontSize: '10px' }}>→</span>
+                  <span style={{ fontFamily: 'var(--ff-mono)', fontSize: '10px', fontWeight: 600, color: 'var(--ink)', letterSpacing: '0.08em' }}>{catalogCfg.headline.toUpperCase()}</span>
+                </div>
+                <h1 style={{
+                  fontFamily: 'var(--ff-display)', fontWeight: 800,
+                  fontSize: 'clamp(36px, 5vw, 64px)',
+                  color: 'var(--ink)', lineHeight: 0.95,
+                  letterSpacing: '-0.045em', marginBottom: '10px',
+                }}>
+                  {catalogCfg.headline}
                 </h1>
-                <p style={{ color: 'var(--text-muted)', fontSize: '13px', marginTop: '2px' }}>
-                  {total} {total === 1 ? 'предложение' : total < 5 ? 'предложения' : 'предложений'}
-                  {activeFiltersCount > 0 && (
-                    <Link href="/catalog" style={{ marginLeft: '8px', color: 'var(--primary)', fontSize: '12px', textDecoration: 'none' }}>
-                      сбросить фильтры ×
-                    </Link>
-                  )}
+                <p style={{ fontSize: '14px', color: 'var(--muted)', lineHeight: 1.5 }}>
+                  {catalogCfg.subheadline}
                 </p>
               </div>
               <Link href="/dashboard/services/new" style={{
-                padding: '9px 20px', borderRadius: '50px',
-                background: 'var(--primary)', color: '#fff',
-                fontSize: '13px', fontWeight: 600, textDecoration: 'none',
-                boxShadow: '0 2px 8px rgba(249,115,22,0.28)',
-                whiteSpace: 'nowrap',
+                display: 'inline-flex', alignItems: 'center', gap: '7px',
+                padding: '11px 20px', borderRadius: 'var(--r-md)',
+                background: 'var(--ink)', color: 'var(--paper)',
+                fontSize: '13px', fontWeight: 700, textDecoration: 'none',
+                letterSpacing: '-0.01em', flexShrink: 0,
               }}>
-                + Разместить услугу
+                + Разместить
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
               </Link>
             </div>
 
-            {/* Теги */}
-            {allTags.length > 0 && (
-              <div style={{
-                background: '#fff', border: '1px solid var(--border)',
-                borderRadius: '8px', padding: '10px 14px', marginBottom: '16px',
-              }}>
-                <p style={{ fontSize: '11px', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '6px' }}>
-                  Теги
-                </p>
-                <TagsCloud
-                  tags={allTags}
-                  activeTag={params.tag}
-                  tagHrefs={tagHrefs}
-                  clearTagHref={clearTagHref}
-                />
-              </div>
-            )}
+            <FormatPicker config={catalogCfg} activeFormat={activeFormat} currentSearch={params.search ?? ''} />
+          </div>
+        </section>
 
-            {/* Карточки */}
-            {services.length === 0 ? (
-              <div style={{
-                background: '#fff', border: '1px solid var(--border)',
-                borderRadius: '8px', padding: '60px 32px', textAlign: 'center',
-              }}>
-                <p style={{ fontSize: '40px', marginBottom: '16px' }}>🔍</p>
-                <p style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text)', marginBottom: '8px' }}>Услуги не найдены</p>
-                <p style={{ color: 'var(--text-muted)', marginBottom: '20px', fontSize: '14px' }}>Попробуйте изменить фильтры</p>
-                <Link href="/catalog" style={{
-                  display: 'inline-block', padding: '10px 24px', borderRadius: '50px',
-                  background: 'var(--primary)', color: '#fff', fontWeight: 600, fontSize: '14px',
-                  textDecoration: 'none',
-                }}>
-                  Сбросить фильтры
-                </Link>
-              </div>
-            ) : (
-              <>
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(210px, 1fr))',
-                  gap: '14px', marginBottom: '24px',
-                }}>
-                  {services.map(s => <ServiceCard key={s.id} service={s} isFavorited={favoriteIds.includes(s.id)} />)}
+        {/* ── Catalog content ── */}
+        {activeFormat && (
+          <div
+            key={activeFormat}
+            className="catalog-content"
+            style={{
+              // Inject format accent as CSS variables for the whole content zone
+              '--fmt-accent': accentBg,
+              '--fmt-text': accentText,
+              borderTop: '1px solid var(--line)',
+              padding: '32px 28px 56px',
+              maxWidth: '1280px', margin: '0 auto',
+            } as React.CSSProperties}
+          >
+            <div className="layout-with-sidebar" style={{ gap: '40px' }}>
+
+              {/* ── Sidebar ── */}
+              <aside className="sidebar-hide" style={{ display: 'flex', flexDirection: 'column', gap: '28px' }}>
+
+                {/* Search */}
+                <div>
+                  <p className="sidebar-label">Поиск</p>
+                  <SearchAutocomplete initialValue={params.search} hiddenFields={hiddenFields} />
                 </div>
 
-                {pages > 1 && (
-                  <div style={{ display: 'flex', gap: '6px', justifyContent: 'center' }}>
-                    {Array.from({ length: pages }, (_, i) => i + 1).map(p => (
-                      <Link key={p} href={buildUrl({ page: String(p) })} style={{
-                        width: '36px', height: '36px', borderRadius: '6px',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '13px', fontWeight: p === page ? 700 : 500,
-                        background: p === page ? 'var(--primary)' : '#fff',
-                        color: p === page ? '#fff' : 'var(--text)',
-                        border: '1px solid var(--border)',
-                        textDecoration: 'none',
+                {/* Categories */}
+                {categories.length > 0 && (
+                  <div>
+                    <p className="sidebar-label">Категория</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                      {[{ slug: '', name: 'Все', icon: null }, ...categories].map(cat => {
+                        const isActive = cat.slug === '' ? !params.category : params.category === cat.slug
+                        return (
+                          <Link
+                            key={cat.slug || '__all'}
+                            href={buildUrl({ category: cat.slug })}
+                            className={`cat-chip${isActive ? ' active' : ''}`}
+                          >
+                            {cat.icon && <span style={{ fontSize: '13px' }}>{cat.icon}</span>}
+                            {cat.name}
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Price */}
+                <div>
+                  <p className="sidebar-label">Цена, ₽</p>
+                  <form method="get" action="/catalog">
+                    {params.format   && <input type="hidden" name="format"   value={params.format} />}
+                    {params.category && <input type="hidden" name="category" value={params.category} />}
+                    {params.search   && <input type="hidden" name="search"   value={params.search} />}
+                    {params.tag      && <input type="hidden" name="tag"      value={params.tag} />}
+                    {params.sort     && <input type="hidden" name="sort"     value={params.sort} />}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <input type="number" name="priceMin" defaultValue={params.priceMin} placeholder="от"  min="0" className="price-input" />
+                      <span style={{ color: 'var(--line)', fontWeight: 700, fontSize: '16px', flexShrink: 0 }}>—</span>
+                      <input type="number" name="priceMax" defaultValue={params.priceMax} placeholder="до" min="0" className="price-input" />
+                      <button type="submit" className="price-btn">→</button>
+                    </div>
+                    {(params.priceMin || params.priceMax) && (
+                      <Link href={buildUrl({ priceMin: '', priceMax: '' })} style={{
+                        fontSize: '11px', color: 'var(--muted)', marginTop: '8px',
+                        display: 'inline-flex', alignItems: 'center', gap: '3px', textDecoration: 'none',
                       }}>
-                        {p}
+                        <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                          <path d="M18 6L6 18M6 6l12 12"/>
+                        </svg>
+                        сбросить цену
+                      </Link>
+                    )}
+                  </form>
+                </div>
+
+                {/* Reset all */}
+                {activeFiltersCount > 0 && (
+                  <Link href={`/catalog?format=${activeFormat}`} style={{
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                    padding: '10px 16px', borderRadius: 'var(--r-md)',
+                    fontSize: '12px', fontWeight: 800, letterSpacing: '-0.01em',
+                    background: accentLight,
+                    border: `1px solid ${accentBg}44`,
+                    color: accentBg === '#0F0F12' || accentBg.startsWith('#0') ? accentBg : accentBg,
+                    textDecoration: 'none',
+                  }}>
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                      <path d="M18 6L6 18M6 6l12 12"/>
+                    </svg>
+                    Сбросить фильтры ({activeFiltersCount})
+                  </Link>
+                )}
+              </aside>
+
+              {/* ── Main content ── */}
+              <div style={{ minWidth: 0 }}>
+
+                {/* Sort + count bar */}
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                  gap: '12px', marginBottom: '20px', flexWrap: 'wrap',
+                }}>
+                  <p style={{ fontFamily: 'var(--ff-display)', fontSize: '14px', color: 'var(--muted)', fontWeight: 500 }}>
+                    <span className="count-num" style={{ fontWeight: 800, fontSize: '16px' }}>{total}</span>{' '}
+                    {total === 1 ? 'предложение' : total < 5 ? 'предложения' : 'предложений'}
+                  </p>
+                  <div style={{
+                    display: 'flex', gap: '2px', padding: '4px',
+                    background: 'var(--paper-2)', borderRadius: 'var(--r-md)',
+                    border: '1px solid var(--line)',
+                  }}>
+                    {SORT_OPTIONS.map(opt => (
+                      <Link
+                        key={opt.value}
+                        href={buildUrl({ sort: opt.value })}
+                        className={`sort-chip${sort === opt.value ? ' active' : ''}`}
+                      >
+                        {opt.label}
                       </Link>
                     ))}
                   </div>
+                </div>
+
+                {/* Tag cloud */}
+                {allTags.length > 0 && (
+                  <div style={{
+                    marginBottom: '24px', padding: '20px 24px',
+                    background: '#fff', borderRadius: 'var(--r-lg)',
+                    border: '1px solid var(--line)',
+                    borderTop: `3px solid ${accentBg}`,
+                  }}>
+                    <p className="tag-cloud-header">Облако тегов</p>
+                    <TagsCloud
+                      tags={allTags}
+                      activeTag={params.tag}
+                      tagHrefs={tagHrefs}
+                      clearTagHref={clearTagHref}
+                      accentColor={accentBg}
+                      accentTextColor={accentText}
+                    />
+                  </div>
                 )}
-              </>
-            )}
+
+                {/* Cards */}
+                {services.length === 0 ? (
+                  <div style={{
+                    background: '#fff', border: '1px solid var(--line)',
+                    borderRadius: 'var(--r-lg)', padding: '60px 32px', textAlign: 'center',
+                  }}>
+                    <p style={{ fontSize: '36px', marginBottom: '16px' }}>🔍</p>
+                    <p style={{ fontFamily: 'var(--ff-display)', fontWeight: 800, fontSize: '28px', color: 'var(--ink)', letterSpacing: '-0.04em', marginBottom: '8px' }}>
+                      Ничего не найдено
+                    </p>
+                    <p style={{ color: 'var(--muted)', marginBottom: '24px', fontSize: '14px' }}>Попробуйте изменить фильтры</p>
+                    <Link href={`/catalog?format=${activeFormat}`} style={{
+                      display: 'inline-block', padding: '12px 28px', borderRadius: 'var(--r-md)',
+                      background: 'var(--fmt-accent)', color: 'var(--fmt-text)',
+                      fontSize: '14px', fontWeight: 700, textDecoration: 'none',
+                    }}>
+                      Сбросить фильтры
+                    </Link>
+                  </div>
+                ) : (
+                  <>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(264px, 1fr))', gap: '20px' }}>
+                      {services.map(s => <ServiceCard key={s.id} service={s} isFavorited={favoriteIds.includes(s.id)} />)}
+                    </div>
+                    <Pagination page={page} pages={pages} buildUrl={buildUrl} />
+                  </>
+                )}
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
-    </div>
+    </>
   )
 }

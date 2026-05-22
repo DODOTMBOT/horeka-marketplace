@@ -5,11 +5,11 @@ import { useTransition } from 'react'
 type Action = () => Promise<{ error?: string }>
 
 const variants = {
-  default: { bg: '#f9fafb', color: '#374151', border: '#e5e7eb' },
-  danger:  { bg: '#fef2f2', color: '#dc2626', border: '#fecaca' },
-  success: { bg: '#f0fdf4', color: '#16a34a', border: '#bbf7d0' },
-  warning: { bg: '#fffbeb', color: '#d97706', border: '#fde68a' },
-  primary: { bg: '#eff6ff', color: '#2563eb', border: '#bfdbfe' },
+  default: { bg: '#f5f5f5', color: '#555',    border: '#e0e0e0' },
+  danger:  { bg: '#fff',    color: '#dc2626', border: '#fecaca' },
+  success: { bg: '#fff',    color: '#16a34a', border: '#bbf7d0' },
+  warning: { bg: '#fff',    color: '#d97706', border: '#fde68a' },
+  primary: { bg: '#111',    color: '#fff',    border: '#111'    },
 }
 
 export function ActionButton({
@@ -37,17 +37,18 @@ export function ActionButton({
       onClick={handleClick}
       disabled={pending}
       style={{
-        padding: size === 'xs' ? '3px 8px' : '4px 10px',
-        borderRadius: '4px',
-        fontSize: size === 'xs' ? '11px' : '12px',
-        fontWeight: 600,
+        padding: size === 'xs' ? '3px 8px' : '5px 11px',
+        borderRadius: '3px',
+        fontSize: size === 'xs' ? '10px' : '12px',
+        fontWeight: 700,
         background: c.bg,
         color: c.color,
-        border: `1px solid ${c.border}`,
+        border: `1.5px solid ${c.border}`,
         cursor: pending ? 'not-allowed' : 'pointer',
         opacity: pending ? 0.5 : 1,
         whiteSpace: 'nowrap',
-        letterSpacing: '0.01em',
+        letterSpacing: '0.02em',
+        textTransform: 'uppercase',
       }}
     >
       {pending ? '...' : label}

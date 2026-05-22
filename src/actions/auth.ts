@@ -19,6 +19,16 @@ export async function register(
     phone: formData.get('phone'),
     password: formData.get('password'),
     role: formData.get('role'),
+    businessType: formData.get('businessType'),
+    companyName: formData.get('companyName'),
+    inn: formData.get('inn'),
+    ogrn: formData.get('ogrn'),
+    kpp: formData.get('kpp'),
+    legalAddress: formData.get('legalAddress'),
+    bankAccount: formData.get('bankAccount'),
+    bankBik: formData.get('bankBik'),
+    bankName: formData.get('bankName'),
+    bankCorrAccount: formData.get('bankCorrAccount'),
   }
 
   const parsed = RegisterSchema.safeParse(raw)
@@ -26,7 +36,15 @@ export async function register(
     return { errors: parsed.error.flatten().fieldErrors }
   }
 
-  const { name, email, phone, password, role } = parsed.data
+  const { name, email, phone, password, role, businessType, companyName, inn,
+          ogrn, kpp, legalAddress, bankAccount, bankBik, bankName, bankCorrAccount } = parsed.data
+
+  if (role === 'SELLER') {
+    if (!businessType) return { errors: { businessType: ['Выберите тип бизнеса'] } }
+    if (!inn) return { errors: { inn: ['ИНН обязателен для исполнителей'] } }
+    if (!bankAccount) return { errors: { bankAccount: ['Укажите расчётный счёт'] } }
+    if (!bankBik) return { errors: { bankBik: ['Укажите БИК банка'] } }
+  }
 
   const existing = await prisma.user.findUnique({ where: { email } })
   if (existing) {
@@ -42,6 +60,18 @@ export async function register(
       passwordHash,
       phone: phone || null,
       role: role as UserRole,
+      ...(role === 'SELLER' && {
+        businessType: (businessType || undefined) as any,
+        companyName: companyName || null,
+        inn: inn || null,
+        ogrn: ogrn || null,
+        kpp: kpp || null,
+        legalAddress: legalAddress || null,
+        bankAccount: bankAccount || null,
+        bankBik: bankBik || null,
+        bankName: bankName || null,
+        bankCorrAccount: bankCorrAccount || null,
+      }),
     },
   })
 

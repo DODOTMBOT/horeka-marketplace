@@ -1,87 +1,134 @@
 import Link from 'next/link'
 import { getSession } from '@/lib/session'
 import { logout } from '@/actions/auth'
+import { LogoWordmark, LogoMark } from './Logo'
+import { prisma } from '@/lib/prisma'
+import { getNavbarConfig } from '@/lib/siteConfig'
+
+async function getUserCount() {
+  try { return await prisma.user.count() } catch { return 0 }
+}
+
+const NAV_LINKS = [
+  { href: '/catalog',   label: 'Каталог' },
+  { href: '/suppliers', label: 'Поставщики' },
+  { href: '/jobs',      label: 'Вакансии' },
+  { href: '/register?role=SELLER', label: 'Для бизнеса' },
+]
 
 export default async function Navbar() {
-  const session = await getSession()
+  const [session, userCount, navCfg] = await Promise.all([
+    getSession(),
+    getUserCount(),
+    getNavbarConfig(),
+  ])
 
   return (
     <header style={{
-      background: '#ffffff',
-      borderBottom: '1px solid var(--border)',
+      background: 'var(--paper)',
+      borderBottom: '1px solid var(--line)',
       position: 'sticky', top: 0, zIndex: 100,
-      boxShadow: '0 1px 8px rgba(0,0,0,0.04)',
     }}>
-      <div className="nav-grid" style={{
-        maxWidth: '1280px', margin: '0 auto', padding: '0 24px',
-        height: '68px',
+      <div style={{
+        maxWidth: '1280px', margin: '0 auto', padding: '0 28px',
+        height: '72px', display: 'flex', alignItems: 'center', gap: '32px',
       }}>
         {/* Logo */}
-        <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '9px', textDecoration: 'none' }}>
-          <div style={{
-            width: '34px', height: '34px', borderRadius: '10px',
-            background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0,
-          }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>
-              <polyline points="9 22 9 12 15 12 15 22"/>
-            </svg>
-          </div>
-          <span style={{ fontSize: '17px', fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.4px' }}>Unit One</span>
+        <Link href="/" style={{ textDecoration: 'none', flexShrink: 0 }}>
+          {navCfg.logoImageUrl ? (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
+              <img
+                src={navCfg.logoImageUrl}
+                alt={navCfg.logoText || 'logo'}
+                style={{ height: '40px', width: 'auto', display: 'block', objectFit: 'contain' }}
+              />
+              {navCfg.logoText && (
+                <span style={{
+                  fontFamily: 'var(--ff-display)', fontWeight: 800,
+                  fontSize: '18px', color: 'var(--ink)',
+                  letterSpacing: '-0.04em', lineHeight: 1,
+                }}>
+                  {navCfg.logoText}
+                </span>
+              )}
+            </div>
+          ) : navCfg.showIcon ? (
+            <div style={{ display: 'inline-flex', alignItems: 'center', gap: '10px' }}>
+              <LogoMark size={34} />
+              {navCfg.logoText && (
+                <span style={{
+                  fontFamily: 'var(--ff-display)', fontWeight: 800,
+                  fontSize: '18px', color: 'var(--ink)',
+                  letterSpacing: '-0.04em', lineHeight: 1,
+                }}>
+                  {navCfg.logoText}
+                </span>
+              )}
+            </div>
+          ) : (
+            <span style={{
+              fontFamily: 'var(--ff-display)', fontWeight: 800,
+              fontSize: '20px', color: 'var(--ink)',
+              letterSpacing: '-0.04em', lineHeight: 1,
+            }}>
+              {navCfg.logoText || 'unit one'}
+            </span>
+          )}
         </Link>
 
-        {/* Search */}
-        <form method="get" action="/catalog" className="nav-search-col" style={{ width: '100%' }}>
-          <div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
-            <svg style={{ position: 'absolute', left: '16px', color: 'var(--text-muted)', flexShrink: 0 }}
-              width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
-            </svg>
-            <input
-              type="text" name="search"
-              placeholder="Поиск поставщиков и услуг..."
-              style={{
-                width: '100%',
-                padding: '11px 52px 11px 44px',
-                borderRadius: '50px',
-                background: 'var(--bg)',
-                border: '1.5px solid var(--border)',
-                fontSize: '14px',
-                color: 'var(--text)',
-                transition: 'border-color 0.15s',
-              }}
-            />
-            <button type="submit" style={{
-              position: 'absolute', right: '6px',
-              padding: '7px 18px', borderRadius: '50px',
-              background: 'var(--primary)', color: '#fff',
-              fontSize: '13px', fontWeight: 600, border: 'none', cursor: 'pointer',
+        {/* Nav links */}
+        <nav style={{ display: 'flex', alignItems: 'center', gap: '4px' }} className="nav-search-col">
+          {NAV_LINKS.map(link => (
+            <Link key={link.href} href={link.href} className="nav-link" style={{
+              padding: '7px 13px', borderRadius: 'var(--r-sm)',
+              fontSize: '14px', fontWeight: 500, color: 'var(--ink)',
+              textDecoration: 'none', whiteSpace: 'nowrap',
+              transition: 'background 0.12s',
             }}>
-              Найти
-            </button>
-          </div>
-        </form>
+              {link.label}
+            </Link>
+          ))}
+        </nav>
 
-        {/* Actions */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', justifyContent: 'flex-end' }}>
+        {/* Right */}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '10px', flexShrink: 0 }}>
+          {/* Online indicator */}
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: '6px',
+            padding: '6px 13px', borderRadius: '999px',
+            border: '1px solid var(--line)',
+            fontSize: '12px', fontWeight: 600, color: 'var(--ink)',
+            whiteSpace: 'nowrap',
+          }} className="hide-xs">
+            <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e', display: 'inline-block', flexShrink: 0 }} />
+            {userCount.toLocaleString('ru-RU')} ОНЛАЙН
+          </div>
+
           {session ? (
             <>
+              {session.role === 'ADMIN' && (
+                <Link href="/admin" style={{
+                  padding: '8px 15px', borderRadius: 'var(--r-sm)',
+                  background: 'var(--ink)', color: 'var(--paper)',
+                  fontSize: '12px', fontWeight: 700, textDecoration: 'none',
+                  whiteSpace: 'nowrap', letterSpacing: '-0.01em',
+                }}>
+                  Админ
+                </Link>
+              )}
               <Link href="/dashboard" style={{
-                padding: '8px 18px', borderRadius: '50px',
-                background: 'var(--primary)', color: '#fff',
-                fontSize: '13px', fontWeight: 600,
-                boxShadow: '0 2px 8px rgba(249,115,22,0.28)',
+                padding: '8px 20px', borderRadius: 'var(--r-sm)',
+                background: 'var(--blue)', color: '#fff',
+                fontSize: '13px', fontWeight: 700, textDecoration: 'none',
                 whiteSpace: 'nowrap',
               }}>
                 Кабинет
               </Link>
               <form action={logout}>
                 <button type="submit" style={{
-                  padding: '8px 16px', borderRadius: '50px',
-                  background: 'transparent', border: '1.5px solid var(--border)',
-                  fontSize: '13px', fontWeight: 500, color: 'var(--text-muted)',
-                  cursor: 'pointer', whiteSpace: 'nowrap',
+                  padding: '8px 14px', borderRadius: 'var(--r-sm)',
+                  background: 'transparent', border: '1px solid var(--line)',
+                  fontSize: '13px', color: 'var(--muted)', cursor: 'pointer', whiteSpace: 'nowrap',
                 }}>
                   Выйти
                 </button>
@@ -90,21 +137,24 @@ export default async function Navbar() {
           ) : (
             <>
               <Link href="/login" style={{
-                padding: '8px 18px', borderRadius: '50px',
-                background: 'transparent', border: '1.5px solid var(--border)',
-                fontSize: '13px', fontWeight: 600, color: 'var(--text)',
-                whiteSpace: 'nowrap',
+                padding: '8px 16px', borderRadius: 'var(--r-sm)',
+                background: 'transparent', border: '1px solid var(--line)',
+                fontSize: '13px', fontWeight: 600, color: 'var(--ink)',
+                textDecoration: 'none', whiteSpace: 'nowrap',
               }}>
                 Войти
               </Link>
               <Link href="/register" style={{
-                padding: '8px 20px', borderRadius: '50px',
-                background: 'var(--primary)', color: '#fff',
-                fontSize: '13px', fontWeight: 600,
-                boxShadow: '0 2px 8px rgba(249,115,22,0.28)',
+                padding: '8px 20px', borderRadius: 'var(--r-sm)',
+                background: 'var(--ink)', color: 'var(--paper)',
+                fontSize: '13px', fontWeight: 700, textDecoration: 'none',
                 whiteSpace: 'nowrap',
+                display: 'flex', alignItems: 'center', gap: '5px',
               }}>
-                Регистрация
+                Начать
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
               </Link>
             </>
           )}

@@ -53,7 +53,7 @@ export default function ReviewForm({ orderId }: { orderId: string }) {
 
       <textarea
         name="comment"
-        placeholder="Расскажите о вашем опыте с поставщиком..."
+        placeholder="Расскажите о вашем опыте с исполнителем..."
         rows={4}
         style={{
           width: '100%', padding: '12px 14px', borderRadius: 'var(--radius-sm)',

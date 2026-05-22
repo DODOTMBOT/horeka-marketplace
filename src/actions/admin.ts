@@ -324,11 +324,12 @@ export async function createCategory(_prev: { error?: string; success?: boolean 
   await requireAdmin()
   const name = (formData.get('name') as string)?.trim()
   const icon = (formData.get('icon') as string)?.trim() || '📦'
+  const format = (formData.get('format') as string)?.trim() || 'service'
   if (!name || name.length < 2) return { error: 'Минимум 2 символа' }
   const slug = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-zа-яё0-9-]/gi, '')
   const existing = await prisma.category.findUnique({ where: { slug } })
   if (existing) return { error: 'Категория с таким slug уже существует' }
-  await prisma.category.create({ data: { name, icon, slug } })
+  await prisma.category.create({ data: { name, icon, slug, format } })
   revalidatePath('/admin/categories')
   revalidatePath('/')
   return { success: true }
@@ -339,8 +340,9 @@ export async function updateCategory(_prev: { error?: string; success?: boolean 
   const id = formData.get('id') as string
   const name = (formData.get('name') as string)?.trim()
   const icon = (formData.get('icon') as string)?.trim()
+  const format = (formData.get('format') as string)?.trim() || 'service'
   if (!name || name.length < 2) return { error: 'Минимум 2 символа' }
-  await prisma.category.update({ where: { id }, data: { name, icon } })
+  await prisma.category.update({ where: { id }, data: { name, icon, format } })
   revalidatePath('/admin/categories')
   revalidatePath('/')
   return { success: true }
@@ -516,4 +518,44 @@ export async function sendAdminNotification(
 export async function getAdminUsers2() {
   await requireAdmin()
   return prisma.user.findMany({ select: { id: true, name: true, email: true }, orderBy: { name: 'asc' } })
+}
+
+// ─── Payouts ─────────────────────────────────────────────────────────────────
+
+export async function getAdminPayouts() {
+  await requireAdmin()
+
+  const [pending, done] = await Promise.all([
+    prisma.order.findMany({
+      where: { paid: true, sellerPaid: false },
+      include: {
+        service: { include: { seller: { select: { id: true, name: true, companyName: true, phone: true, email: true } } } },
+        buyer: { select: { id: true, name: true } },
+      },
+      orderBy: { updatedAt: 'desc' },
+    }),
+    prisma.order.findMany({
+      where: { sellerPaid: true },
+      include: {
+        service: { include: { seller: { select: { id: true, name: true, companyName: true } } } },
+        buyer: { select: { id: true, name: true } },
+      },
+      orderBy: { sellerPaidAt: 'desc' },
+      take: 50,
+    }),
+  ])
+
+  const pendingTotal = pending.reduce((s, o) => s + Number(o.price), 0)
+
+  return { pending, done, pendingTotal }
+}
+
+export async function markSellerPaid(orderId: string): Promise<{ error?: string }> {
+  await requireAdmin()
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { sellerPaid: true, sellerPaidAt: new Date() },
+  })
+  revalidatePath('/admin/payouts')
+  return {}
 }

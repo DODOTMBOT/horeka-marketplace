@@ -5,17 +5,25 @@ import { getOrder } from '@/actions/orders'
 import DashboardNav from '@/components/DashboardNav'
 import OrderActions from './OrderActions'
 import ReviewForm from './ReviewForm'
+import PayButton from './PayButton'
 
 const STATUS_MAP: Record<string, { label: string; color: string; bg: string; desc: string }> = {
-  PENDING:   { label: 'Ожидает принятия', color: '#d97706', bg: '#fffbeb', desc: 'Поставщик ещё не принял заказ' },
-  ACTIVE:    { label: 'В работе',         color: '#2563eb', bg: '#eff6ff', desc: 'Поставщик выполняет заказ' },
+  PENDING:   { label: 'Ожидает принятия', color: '#d97706', bg: '#fffbeb', desc: 'Исполнитель ещё не принял заказ' },
+  ACTIVE:    { label: 'В работе',         color: '#2563eb', bg: '#eff6ff', desc: 'Исполнитель выполняет заказ' },
   COMPLETED: { label: 'Завершён',         color: '#16a34a', bg: '#f0fdf4', desc: 'Заказ успешно выполнен' },
   CANCELLED: { label: 'Отменён',          color: '#dc2626', bg: '#fef2f2', desc: 'Заказ отменён' },
   DISPUTED:  { label: 'Спор',             color: '#7c3aed', bg: '#f5f3ff', desc: 'Открыт спор' },
 }
 
-export default async function OrderPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function OrderPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ payment?: string }>
+}) {
   const { id } = await params
+  const { payment } = await searchParams
   const [session, order] = await Promise.all([getSession(), getOrder(id)])
 
   if (!session) redirect('/login')
@@ -226,6 +234,47 @@ export default async function OrderPage({ params }: { params: Promise<{ id: stri
                 </div>
               ))}
             </div>
+
+            {/* Payment */}
+            {isBuyer && !order.paid && order.status === 'PENDING' && (
+              <div style={{
+                background: 'var(--surface)', borderRadius: 'var(--radius)',
+                boxShadow: 'var(--shadow-out)', padding: '20px',
+              }}>
+                <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '14px' }}>
+                  Оплата
+                </p>
+                {payment === 'success' ? (
+                  <div style={{ textAlign: 'center', padding: '8px 0' }}>
+                    <p style={{ fontSize: '24px', marginBottom: '6px' }}>✅</p>
+                    <p style={{ fontSize: '14px', fontWeight: 700, color: '#16a34a' }}>Оплата прошла!</p>
+                    <p style={{ fontSize: '12px', color: 'var(--text-muted)', marginTop: '4px' }}>Заказ передан исполнителю</p>
+                  </div>
+                ) : payment === 'fail' ? (
+                  <div style={{ marginBottom: '12px', padding: '10px 14px', borderRadius: '8px', background: '#fef2f2', border: '1px solid #fecaca' }}>
+                    <p style={{ fontSize: '13px', color: '#dc2626', fontWeight: 600 }}>Оплата не прошла</p>
+                    <p style={{ fontSize: '12px', color: '#ef4444', marginTop: '2px' }}>Попробуйте ещё раз</p>
+                  </div>
+                ) : null}
+                {payment !== 'success' && (
+                  <PayButton orderId={order.id} amount={Number(order.price)} />
+                )}
+              </div>
+            )}
+
+            {isBuyer && order.paid && (
+              <div style={{
+                background: '#f0fdf4', borderRadius: 'var(--radius)',
+                border: '1px solid #bbf7d0', padding: '16px 20px',
+                display: 'flex', alignItems: 'center', gap: '10px',
+              }}>
+                <span style={{ fontSize: '20px' }}>✅</span>
+                <div>
+                  <p style={{ fontSize: '13px', fontWeight: 700, color: '#16a34a' }}>Оплачено</p>
+                  <p style={{ fontSize: '12px', color: '#4ade80' }}>{Number(order.price).toLocaleString('ru-RU')} ₽</p>
+                </div>
+              </div>
+            )}
 
             {/* Actions */}
             <OrderActions orderId={order.id} currentStatus={order.status} isBuyer={isBuyer} isSeller={isSeller} />

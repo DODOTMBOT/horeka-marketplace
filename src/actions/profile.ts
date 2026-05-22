@@ -58,7 +58,7 @@ export type PortfolioState = { error?: string; success?: boolean }
 export async function addPortfolioImage(url: string): Promise<PortfolioState> {
   const session = await getSession()
   if (!session) return { error: 'Не авторизован' }
-  if (session.role !== 'SELLER') return { error: 'Только для поставщиков' }
+  if (session.role !== 'SELLER') return { error: 'Только для исполнителей' }
   if (!url.startsWith('/')) return { error: 'Некорректный URL' }
 
   const user = await prisma.user.findUnique({ where: { id: session.userId }, select: { portfolioUrls: true } })

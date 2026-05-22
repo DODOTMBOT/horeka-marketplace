@@ -1,29 +1,28 @@
 import { z } from 'zod'
 
+const optStr = z.string().optional().or(z.literal(''))
+
 export const RegisterSchema = z.object({
-  name: z
-    .string()
-    .min(2, { message: 'Имя должно содержать не менее 2 символов' })
-    .max(100)
-    .trim(),
-  email: z
-    .string()
-    .email({ message: 'Некорректный формат email' })
-    .trim()
-    .toLowerCase(),
-  phone: z
-    .string()
-    .regex(/^[\d\s\-+()]{7,20}$/, { message: 'Некорректный формат номера' })
-    .optional()
-    .or(z.literal('')),
+  name: z.string().min(2, { message: 'Имя должно содержать не менее 2 символов' }).max(100).trim(),
+  email: z.string().email({ message: 'Некорректный формат email' }).trim().toLowerCase(),
+  phone: z.string().regex(/^[\d\s\-+()]{7,20}$/, { message: 'Некорректный формат номера' }).optional().or(z.literal('')),
   password: z
     .string()
     .min(8, { message: 'Пароль должен содержать не менее 8 символов' })
     .regex(/[A-Za-zА-Яа-я]/, { message: 'Пароль должен содержать буквы' })
     .regex(/[0-9]/, { message: 'Пароль должен содержать цифры' }),
-  role: z.enum(['BUYER', 'SELLER'], {
-    message: 'Выберите роль',
-  }),
+  role: z.enum(['BUYER', 'SELLER'], { message: 'Выберите роль' }),
+  // Seller-specific
+  businessType: z.enum(['SELF_EMPLOYED', 'IP', 'COMPANY']).optional().or(z.literal('')),
+  companyName:  optStr,
+  inn:          optStr,
+  ogrn:         optStr,
+  kpp:          optStr,
+  legalAddress: optStr,
+  bankAccount:  optStr,
+  bankBik:      optStr,
+  bankName:     optStr,
+  bankCorrAccount: optStr,
 })
 
 export const LoginSchema = z.object({
@@ -50,6 +49,10 @@ export type RegisterFormState = {
     phone?: string[]
     password?: string[]
     role?: string[]
+    businessType?: string[]
+    inn?: string[]
+    bankAccount?: string[]
+    bankBik?: string[]
     general?: string[]
   }
   success?: boolean

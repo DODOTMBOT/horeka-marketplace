@@ -19,7 +19,7 @@ export async function createOrder(
 ): Promise<CreateOrderState> {
   const session = await getSession()
   if (!session) return { error: 'Войдите в аккаунт' }
-  if (session.role === 'SELLER') return { error: 'Поставщики не могут создавать заказы' }
+  if (session.role === 'SELLER') return { error: 'Исполнители не могут создавать заказы' }
 
   const serviceId = formData.get('serviceId') as string
   const comment = (formData.get('comment') as string) || ''
