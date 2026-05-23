@@ -3,6 +3,7 @@ export type GridCategoryCard = {
   hint: string
   count: number | string
   categorySlug?: string
+  href?: string
 }
 
 export type GridSection = {
@@ -28,41 +29,40 @@ export type HeroV2 = {
 
 export const DEFAULT_GRID_SECTIONS: GridSection[] = [
   {
-    title: 'Закупки и продукты',
-    subtitle: 'Что заходит на кухню',
+    title: 'Маркетплейс услуг',
+    subtitle: 'Специалисты, инструменты и проекты',
     bgColor: '#3D5AFE',
     textColor: 'light',
-    stats: '699 поставщиков · 4.8',
+    stats: 'ИНН-верификация · вся Россия',
     ctaHref: '/catalog',
     categories: [
-      { name: 'Продукты',  hint: 'мясо, рыба, овощи',    count: 412, categorySlug: 'food' },
-      { name: 'Напитки',   hint: 'алко, безалко, кофе',   count: 287, categorySlug: 'beverages' },
-      { name: 'Клининг',   hint: 'химия, инвентарь',      count: 89,  categorySlug: 'cleaning' },
+      { name: 'Инструменты', hint: 'шаблоны, курсы, расчёты',     count: 0, href: '/catalog?format=digital'  },
+      { name: 'Специалист',  hint: 'фотограф, шеф, маркетолог',   count: 0, href: '/catalog?format=service'  },
+      { name: 'Проект',      hint: 'открытие, ребрендинг, автом.', count: 0, href: '/catalog?format=project' },
     ],
   },
   {
-    title: 'Пространство и сервис',
-    subtitle: 'Чем заполнено и кто работает',
+    title: 'Вакансии и резюме',
+    subtitle: 'Работа в HoReCa',
     bgColor: '#D7FF3A',
     textColor: 'dark',
-    stats: '561 поставщик · 18 регионов',
-    ctaHref: '/catalog',
+    stats: 'Рестораны, отели, кафе и бары',
+    ctaHref: '/jobs',
     categories: [
-      { name: 'Оборудование', hint: 'плиты, холод, посуда', count: 196, categorySlug: 'equipment' },
-      { name: 'Интерьер',    hint: 'столы, стулья, декор', count: 154, categorySlug: 'furniture' },
-      { name: 'Персонал',    hint: 'повара, бармены',      count: 311, categorySlug: 'staff' },
+      { name: 'Вакансии', hint: 'повар, бармен, управляющий', count: 0, href: '/jobs' },
+      { name: 'Резюме',   hint: 'найдите нужного кандидата',  count: 0, href: '/jobs' },
     ],
   },
   {
-    title: 'Технологии и рост',
-    subtitle: 'Автоматизация и продвижение',
-    bgColor: '#FF6B5C',
+    title: 'Поставщики',
+    subtitle: 'Продукты и оборудование',
+    bgColor: '#0F0F12',
     textColor: 'light',
-    stats: '235 студий · ИНН-верификация',
-    ctaHref: '/catalog',
+    stats: 'Прямые поставки · без посредников',
+    ctaHref: '/suppliers',
     categories: [
-      { name: 'IT',        hint: 'касса, CRM, учёт',  count: 78,  categorySlug: 'it' },
-      { name: 'Маркетинг', hint: 'фото, SMM, меню',   count: 157, categorySlug: 'marketing' },
+      { name: 'Продукты',     hint: 'мясо, рыба, овощи, напитки', count: 0, href: '/suppliers' },
+      { name: 'Оборудование', hint: 'плиты, холод, посуда',        count: 0, href: '/suppliers' },
     ],
   },
 ]

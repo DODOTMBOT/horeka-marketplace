@@ -4,6 +4,7 @@ import { getHomepageConfig } from '@/lib/siteConfig'
 import type { GridSection, HeroV2 } from '@/lib/siteConfig'
 import type { Metadata } from 'next'
 import AiPanelAnimated from './AiPanelAnimated'
+import { prisma } from '@/lib/prisma'
 
 export const metadata: Metadata = {
   title: 'Unit One — платформа для профессионалов HoReCa',
@@ -232,7 +233,7 @@ function SectionRow({ section, index, total }: { section: GridSection; index: nu
           {section.categories.map((cat, ci) => (
             <Link
               key={ci}
-              href={cat.categorySlug ? `/catalog?category=${cat.categorySlug}` : section.ctaHref}
+              href={cat.href ?? (cat.categorySlug ? `/catalog?category=${cat.categorySlug}` : section.ctaHref)}
               style={{
                 background: cardBg,
                 borderRadius: 'var(--r-md)',
@@ -290,9 +291,30 @@ function SectionRow({ section, index, total }: { section: GridSection; index: nu
 }
 
 export default async function LandingPage() {
-  const cfg = await getHomepageConfig()
+  const [cfg, formatCounts] = await Promise.all([
+    getHomepageConfig(),
+    prisma.service.groupBy({
+      by: ['format'],
+      where: { status: 'ACTIVE' },
+      _count: { id: true },
+    }),
+  ])
+
+  const countByFormat: Record<string, number> = {}
+  for (const r of formatCounts) countByFormat[r.format] = r._count.id
+
   const hero = cfg.heroV2
-  const sections = cfg.gridSections && cfg.gridSections.length > 0 ? cfg.gridSections : []
+  const rawSections = cfg.gridSections && cfg.gridSections.length > 0 ? cfg.gridSections : []
+
+  // inject real counts into format-based category cards
+  const sections = rawSections.map(section => ({
+    ...section,
+    categories: section.categories.map(cat => {
+      const m = cat.href?.match(/[?&]format=(\w+)/)
+      if (m) return { ...cat, count: countByFormat[m[1]] ?? 0 }
+      return cat
+    }),
+  }))
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
