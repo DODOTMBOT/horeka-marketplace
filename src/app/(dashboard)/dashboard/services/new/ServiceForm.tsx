@@ -245,6 +245,9 @@ export default function ServiceForm({
   const [title, setTitle] = useState('')
   const [categoryId, setCategoryId] = useState('')
   const fileRef = useRef<HTMLInputElement>(null)
+  const digitalFileRef = useRef<HTMLInputElement>(null)
+  const [digitalFiles, setDigitalFiles] = useState<{ name: string; url: string; size: number }[]>([])
+  const [uploadingDigital, setUploadingDigital] = useState(false)
 
   const filteredCategories = categories.filter(c => c.format === format)
   const selectedCategory = categories.find(c => c.id === categoryId)
@@ -269,6 +272,28 @@ export default function ServiceForm({
     handleImages(e.dataTransfer.files)
   }
 
+  const handleDigitalFiles = async (files: FileList | null) => {
+    if (!files) return
+    setUploadingDigital(true)
+    for (const file of Array.from(files)) {
+      try {
+        const fd = new FormData()
+        fd.append('file', file)
+        fd.append('folder', 'files')
+        const res = await fetch('/api/upload', { method: 'POST', body: fd })
+        const data = await res.json()
+        if (data.url) {
+          setDigitalFiles(prev => [...prev, { name: file.name, url: data.url, size: file.size }])
+        } else {
+          alert(`Ошибка: ${data.error ?? 'неизвестная ошибка'}`)
+        }
+      } catch {
+        alert(`Ошибка загрузки ${file.name}`)
+      }
+    }
+    setUploadingDigital(false)
+  }
+
   const label = (text: string) => (
     <p style={{
       fontSize: '11px', fontWeight: 700, color: 'var(--muted)',
@@ -288,6 +313,7 @@ export default function ServiceForm({
       {imageUrls.map((url, i) => (
         <input key={i} type="hidden" name={`imageUrl_${i}`} value={url} />
       ))}
+      <input type="hidden" name="digitalFiles" value={JSON.stringify(digitalFiles)} />
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '28px', alignItems: 'start' }}>
         {/* ── Left: form ── */}
@@ -486,6 +512,74 @@ export default function ServiceForm({
             <PriceInput onChange={setPrice} />
             {state.errors?.price?.[0] && <p style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>{state.errors.price[0]}</p>}
           </div>
+
+          {/* Цифровые файлы — только для формата Инструменты */}
+          {format === 'digital' && (
+            <div style={{
+              border: '2px solid var(--blue)',
+              borderRadius: 'var(--r-lg)',
+              padding: '20px 22px',
+              background: 'var(--blue-soft)',
+            }}>
+              <p style={{ fontSize: '13px', fontWeight: 800, color: 'var(--blue)', marginBottom: '4px', letterSpacing: '-0.02em' }}>
+                Файлы для покупателя
+              </p>
+              <p style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '16px', lineHeight: 1.5 }}>
+                Загрузите файлы, которые покупатель получит автоматически после оплаты. PDF, XLSX, DOCX, ZIP — до 50 МБ каждый.
+              </p>
+
+              <input
+                ref={digitalFileRef}
+                type="file"
+                multiple
+                accept=".pdf,.xlsx,.docx,.zip,.csv,.txt"
+                style={{ display: 'none' }}
+                onChange={e => handleDigitalFiles(e.target.files)}
+              />
+
+              {digitalFiles.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
+                  {digitalFiles.map((f, i) => (
+                    <div key={i} style={{
+                      display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                      background: '#fff', borderRadius: 'var(--r-sm)',
+                      padding: '10px 14px', border: '1px solid var(--line)',
+                    }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                        <span style={{ fontSize: '18px', flexShrink: 0 }}>
+                          {f.name.endsWith('.pdf') ? '📄' : f.name.endsWith('.zip') ? '🗜️' : f.name.endsWith('.xlsx') ? '📊' : '📝'}
+                        </span>
+                        <div style={{ minWidth: 0 }}>
+                          <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</p>
+                          <p style={{ fontSize: '11px', color: 'var(--muted)' }}>{(f.size / 1024).toFixed(0)} КБ</p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setDigitalFiles(prev => prev.filter((_, j) => j !== i))}
+                        style={{ background: 'none', border: 'none', color: 'var(--coral)', fontSize: '18px', cursor: 'pointer', flexShrink: 0, lineHeight: 1 }}
+                      >×</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <button
+                type="button"
+                onClick={() => digitalFileRef.current?.click()}
+                disabled={uploadingDigital}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '8px',
+                  padding: '10px 18px', borderRadius: 'var(--r-sm)',
+                  background: uploadingDigital ? 'var(--line)' : 'var(--blue)',
+                  color: '#fff', border: 'none', cursor: uploadingDigital ? 'not-allowed' : 'pointer',
+                  fontSize: '13px', fontWeight: 700, fontFamily: 'var(--ff-display)',
+                }}
+              >
+                {uploadingDigital ? 'Загружаю...' : '+ Добавить файл'}
+              </button>
+            </div>
+          )}
 
           {/* Спецпроект */}
           <div style={{

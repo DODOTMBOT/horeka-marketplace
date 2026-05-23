@@ -16,7 +16,7 @@ const s3 = new S3Client({
 
 export async function uploadFile(
   file: File,
-  folder: 'avatars' | 'services' | 'logos',
+  folder: 'avatars' | 'services' | 'logos' | 'files',
   userId: string
 ): Promise<{ url: string; path: string }> {
   const ext = file.name.split('.').pop() ?? 'jpg'

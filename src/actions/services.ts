@@ -89,6 +89,13 @@ export async function createService(
   const format = (formData.get('format') as string) || 'service'
   const brand = (formData.get('brand') as string | null) || null
 
+  // Digital files (only for format=digital)
+  const digitalFilesJson = formData.get('digitalFiles') as string | null
+  let digitalFiles: { name: string; url: string; size: number }[] | null = null
+  if (digitalFilesJson) {
+    try { digitalFiles = JSON.parse(digitalFilesJson) } catch { /* ignore */ }
+  }
+
   const created = await prisma.service.create({
     data: {
       title: parsed.data.title,
@@ -102,6 +109,7 @@ export async function createService(
       images: imageUrls,
       tags,
       packages: packages ?? undefined,
+      digitalFiles: digitalFiles ?? undefined,
       categoryId: parsed.data.categoryId,
       sellerId: session.userId,
     },
@@ -327,6 +335,12 @@ export async function updateService(
 
   const brand = (formData.get('brand') as string | null) || null
 
+  const digitalFilesJson = formData.get('digitalFiles') as string | null
+  let digitalFiles: { name: string; url: string; size: number }[] | null = null
+  if (digitalFilesJson) {
+    try { digitalFiles = JSON.parse(digitalFilesJson) } catch { /* ignore */ }
+  }
+
   await prisma.service.update({
     where: { id },
     data: {
@@ -341,6 +355,7 @@ export async function updateService(
       packages: packages ?? undefined,
       categoryId: parsed.data.categoryId,
       brand,
+      digitalFiles: digitalFiles !== null ? digitalFiles : undefined,
     },
   })
 

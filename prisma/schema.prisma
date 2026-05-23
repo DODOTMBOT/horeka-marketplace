@@ -104,8 +104,9 @@ model Service {
   status      ServiceStatus @default(DRAFT)
   images      String[]
   tags        String[]
-  packages    Json?         // ServicePackage[]
-  brand       String?
+  packages      Json?         // ServicePackage[]
+  brand         String?
+  digitalFiles  Json?         // DigitalFile[] — only for format=digital
 
   categoryId String
   category   Category @relation(fields: [categoryId], references: [id])

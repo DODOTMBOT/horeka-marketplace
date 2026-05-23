@@ -111,6 +111,7 @@ export async function getOrder(id: string) {
       review: true,
     },
   })
+  // Note: digitalFiles is included via service — it's a JSON field on Service model
 }
 
 export async function updateOrderStatus(

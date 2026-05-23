@@ -128,6 +128,51 @@ export default async function OrderPage({
               </div>
             )}
 
+            {/* Digital files — shown to buyer after completion */}
+            {isBuyer && order.status === 'COMPLETED' && (() => {
+              const files = order.service.digitalFiles as { name: string; url: string; size: number }[] | null
+              if (!files?.length) return null
+              return (
+                <div style={{
+                  background: 'var(--blue-soft)',
+                  border: '1.5px solid var(--blue)',
+                  borderRadius: 'var(--r-lg)',
+                  padding: '20px 24px',
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                    <div style={{ width: '32px', height: '32px', borderRadius: '8px', background: 'var(--blue)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '14px', fontWeight: 800, color: 'var(--blue)', letterSpacing: '-0.02em' }}>Ваши файлы готовы</p>
+                      <p style={{ fontSize: '12px', color: 'var(--muted)' }}>{files.length} {files.length === 1 ? 'файл' : 'файла'} · доступны после оплаты</p>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {files.map((f, i) => (
+                      <a key={i} href={f.url} download={f.name} target="_blank" rel="noopener noreferrer" style={{
+                        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                        background: '#fff', borderRadius: 'var(--r-sm)',
+                        padding: '12px 16px', border: '1px solid var(--line)',
+                        textDecoration: 'none', transition: 'border-color 0.15s',
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 }}>
+                          <span style={{ fontSize: '20px', flexShrink: 0 }}>
+                            {f.name.endsWith('.pdf') ? '📄' : f.name.endsWith('.zip') ? '🗜️' : f.name.endsWith('.xlsx') ? '📊' : '📝'}
+                          </span>
+                          <div style={{ minWidth: 0 }}>
+                            <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f.name}</p>
+                            <p style={{ fontSize: '11px', color: 'var(--muted)' }}>{(f.size / 1024).toFixed(0)} КБ</p>
+                          </div>
+                        </div>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth="2.5" strokeLinecap="round" style={{ flexShrink: 0 }}><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      </a>
+                    ))}
+                  </div>
+                </div>
+              )
+            })()}
+
             {/* Review form / existing review */}
             {isBuyer && order.status === 'COMPLETED' && (
               <div style={{
