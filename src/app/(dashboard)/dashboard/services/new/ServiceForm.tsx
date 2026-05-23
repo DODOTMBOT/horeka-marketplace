@@ -487,6 +487,28 @@ export default function ServiceForm({
             {state.errors?.price?.[0] && <p style={{ color: '#dc2626', fontSize: '12px', marginTop: '4px' }}>{state.errors.price[0]}</p>}
           </div>
 
+          {/* Спецпроект */}
+          <div style={{
+            border: '2px solid #e16919',
+            borderRadius: 'var(--r-lg)',
+            padding: '20px 22px',
+            background: 'rgba(225,105,25,0.04)',
+          }}>
+            <label style={{ display: 'flex', alignItems: 'flex-start', gap: '14px', cursor: 'pointer' }}>
+              <input type="checkbox" name="brand" value="dodo"
+                style={{ width: '20px', height: '20px', marginTop: '2px', accentColor: '#e16919', flexShrink: 0, cursor: 'pointer' }}
+              />
+              <div>
+                <p style={{ fontSize: '14px', fontWeight: 800, color: '#e16919', letterSpacing: '-0.02em', marginBottom: '3px' }}>
+                  Спецпроект Додо Пицца
+                </p>
+                <p style={{ fontSize: '12px', color: 'var(--muted)', lineHeight: 1.5 }}>
+                  Отметьте, если ваша услуга направлена на франчайзи Додо Пицца. Услуга появится на брендированной странице додо.
+                </p>
+              </div>
+            </label>
+          </div>
+
           {/* Submit */}
           {state.error && <p style={{ color: '#dc2626', fontSize: '13px' }}>{state.error}</p>}
 

@@ -87,6 +87,7 @@ export async function createService(
     : []
 
   const format = (formData.get('format') as string) || 'service'
+  const brand = (formData.get('brand') as string | null) || null
 
   const created = await prisma.service.create({
     data: {
@@ -96,6 +97,7 @@ export async function createService(
       price: parsed.data.price,
       priceUnit: parsed.data.priceUnit,
       format,
+      brand,
       status: parsed.data.status as 'DRAFT' | 'ACTIVE',
       images: imageUrls,
       tags,
@@ -127,6 +129,7 @@ export type ServiceFilters = {
   page?: number
   sort?: 'newest' | 'price_asc' | 'price_desc' | 'popular'
   format?: string
+  brand?: string
 }
 
 const PAGE_SIZE = 12
@@ -139,11 +142,12 @@ const SORT_MAP: Record<string, object> = {
 }
 
 export async function getServices(filters: ServiceFilters = {}) {
-  const { categorySlug, search, minPrice, maxPrice, priceUnit, tag, innVerified, page = 1, sort = 'newest', format } = filters
+  const { categorySlug, search, minPrice, maxPrice, priceUnit, tag, innVerified, page = 1, sort = 'newest', format, brand } = filters
 
   const where: Record<string, unknown> = { status: 'ACTIVE' }
 
   if (format) where.format = format
+  if (brand) where.brand = brand
   if (categorySlug) where.category = { slug: categorySlug }
 
   if (search) {
@@ -321,6 +325,8 @@ export async function updateService(
     ? parsed.data.tags.split(',').map(t => t.trim()).filter(Boolean)
     : []
 
+  const brand = (formData.get('brand') as string | null) || null
+
   await prisma.service.update({
     where: { id },
     data: {
@@ -334,6 +340,7 @@ export async function updateService(
       tags,
       packages: packages ?? undefined,
       categoryId: parsed.data.categoryId,
+      brand,
     },
   })
 
