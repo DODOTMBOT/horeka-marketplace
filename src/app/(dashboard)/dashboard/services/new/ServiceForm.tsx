@@ -525,14 +525,14 @@ export default function ServiceForm({
                 Файлы для покупателя
               </p>
               <p style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '16px', lineHeight: 1.5 }}>
-                Загрузите файлы, которые покупатель получит автоматически после оплаты. PDF, XLSX, DOCX, ZIP — до 50 МБ каждый.
+                Загрузите файлы, которые покупатель получит автоматически после оплаты. Любой файл — PDF, XLSX, DOCX, ZIP, видео и др. — до 200 МБ каждый.
               </p>
 
               <input
                 ref={digitalFileRef}
                 type="file"
                 multiple
-                accept=".pdf,.xlsx,.docx,.zip,.csv,.txt"
+                accept="*/*"
                 style={{ display: 'none' }}
                 onChange={e => handleDigitalFiles(e.target.files)}
               />
