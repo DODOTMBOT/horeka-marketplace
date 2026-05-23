@@ -1,4 +1,3 @@
-import DashboardNav from '@/components/DashboardNav'
 import ServiceCard from '@/components/ServiceCard'
 import { getFavorites } from '@/actions/favorites'
 import Link from 'next/link'
@@ -7,9 +6,6 @@ export default async function FavoritesPage() {
   const favorites = await getFavorites()
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <DashboardNav active="favorites" />
-
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 24px' }}>
         <div style={{ marginBottom: '24px' }}>
           <h1 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.4px' }}>
@@ -52,6 +48,5 @@ export default async function FavoritesPage() {
           </div>
         )}
       </div>
-    </div>
   )
 }

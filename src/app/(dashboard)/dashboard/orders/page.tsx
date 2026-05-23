@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { getMyOrders } from '@/actions/orders'
-import DashboardNav from '@/components/DashboardNav'
 
 const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
   PENDING:   { label: 'Ожидает',    color: '#d97706', bg: '#fffbeb' },
@@ -19,8 +18,6 @@ export default async function MyOrdersPage() {
   const orders = await getMyOrders()
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <DashboardNav active="orders" />
       <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 24px' }}>
         <div style={{ marginBottom: '32px' }}>
           <h1 style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>Мои заказы</h1>
@@ -111,6 +108,5 @@ export default async function MyOrdersPage() {
           </div>
         )}
       </main>
-    </div>
   )
 }

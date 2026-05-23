@@ -1,5 +1,4 @@
 import { notFound, redirect } from 'next/navigation'
-import DashboardNav from '@/components/DashboardNav'
 import { getSession } from '@/lib/session'
 import { prisma } from '@/lib/prisma'
 import { getCategories } from '@/actions/services'
@@ -34,8 +33,6 @@ export default async function EditServicePage({ params }: { params: Promise<{ id
   }
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <DashboardNav active="services" />
       <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '32px 24px' }}>
         <div style={{ marginBottom: '28px' }}>
           <h1 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.4px' }}>
@@ -45,6 +42,5 @@ export default async function EditServicePage({ params }: { params: Promise<{ id
         </div>
         <EditServiceForm service={serviceData} categories={categories} packageTiers={packageTiers} priceUnits={priceUnits} />
       </div>
-    </div>
   )
 }

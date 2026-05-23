@@ -1,4 +1,3 @@
-import DashboardNav from '@/components/DashboardNav'
 import { getNotifications, markAllRead } from '@/actions/notifications'
 import Link from 'next/link'
 
@@ -25,9 +24,6 @@ export default async function NotificationsPage() {
   const unread = notifications.filter(n => !n.read)
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <DashboardNav active="notifications" />
-
       <div style={{ maxWidth: '800px', margin: '0 auto', padding: '32px 24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
           <div>
@@ -119,6 +115,5 @@ export default async function NotificationsPage() {
           </div>
         )}
       </div>
-    </div>
   )
 }

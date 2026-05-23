@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { getMyServices } from '@/actions/services'
-import DashboardNav from '@/components/DashboardNav'
 
 const STATUS_LABEL: Record<string, { label: string; color: string; bg: string }> = {
   ACTIVE:  { label: 'Активна',        color: '#16a34a', bg: '#f0fdf4' },
@@ -24,9 +23,6 @@ export default async function MyServicesPage() {
   const services = await getMyServices()
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <DashboardNav active="services" />
-
       <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '32px 24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '24px', flexWrap: 'wrap', gap: '12px' }}>
           <div>
@@ -119,6 +115,5 @@ export default async function MyServicesPage() {
           </div>
         )}
       </main>
-    </div>
   )
 }

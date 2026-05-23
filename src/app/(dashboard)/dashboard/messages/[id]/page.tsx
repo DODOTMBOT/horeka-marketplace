@@ -1,4 +1,3 @@
-import DashboardNav from '@/components/DashboardNav'
 import { getConversation } from '@/actions/messages'
 import { getSession } from '@/lib/session'
 import Link from 'next/link'
@@ -30,9 +29,6 @@ export default async function ChatPage({ params }: { params: Promise<{ id: strin
   let lastDate = ''
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', display: 'flex', flexDirection: 'column' }}>
-      <DashboardNav active="messages" />
-
       <div style={{ maxWidth: '800px', margin: '0 auto', width: '100%', padding: '24px 24px 0', flex: 1, display: 'flex', flexDirection: 'column' }}>
         {/* Header */}
         <div style={{
@@ -142,6 +138,5 @@ export default async function ChatPage({ params }: { params: Promise<{ id: strin
           <ChatInput conversationId={id} />
         </div>
       </div>
-    </div>
   )
 }

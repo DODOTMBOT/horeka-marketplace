@@ -90,7 +90,10 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
   const params = await searchParams
   const activeFormat = params.format
 
-  const catalogCfg = await getCatalogConfig()
+  const [catalogCfg, dodoCount] = await Promise.all([
+    getCatalogConfig(),
+    prisma.service.count({ where: { brand: 'dodo', status: 'ACTIVE' } }),
+  ])
 
   // Resolve accent from admin-configured format block
   const activeBlock = catalogCfg.formats.find(f => f.key === activeFormat)
@@ -293,7 +296,7 @@ export default async function CatalogPage({ searchParams }: { searchParams: Prom
               </Link>
             </div>
 
-            <FormatPicker config={catalogCfg} activeFormat={activeFormat} currentSearch={params.search ?? ''} />
+            <FormatPicker config={catalogCfg} activeFormat={activeFormat} currentSearch={params.search ?? ''} dodoCount={dodoCount} />
           </div>
         </section>
 

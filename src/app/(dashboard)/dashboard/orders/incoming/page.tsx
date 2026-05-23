@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { getIncomingOrders } from '@/actions/orders'
-import DashboardNav from '@/components/DashboardNav'
 import OrderStatusButton from './OrderStatusButton'
 
 const STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
@@ -23,8 +22,6 @@ export default async function IncomingOrdersPage() {
   const active = orders.filter(o => o.status === 'ACTIVE').length
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <DashboardNav active="incoming" />
       <main style={{ maxWidth: '1200px', margin: '0 auto', padding: '40px 24px' }}>
         <div style={{ marginBottom: '32px' }}>
           <h1 style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>Входящие заказы</h1>
@@ -119,6 +116,5 @@ export default async function IncomingOrdersPage() {
           </div>
         )}
       </main>
-    </div>
   )
 }

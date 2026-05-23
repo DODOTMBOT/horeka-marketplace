@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { redirect, notFound } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { getOrder } from '@/actions/orders'
-import DashboardNav from '@/components/DashboardNav'
 import OrderActions from './OrderActions'
 import ReviewForm from './ReviewForm'
 import PayButton from './PayButton'
@@ -38,9 +37,6 @@ export default async function OrderPage({
   const buyerInitials = order.buyer.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <DashboardNav active={isBuyer ? 'orders' : 'incoming'} />
-
       <main style={{ maxWidth: '900px', margin: '0 auto', padding: '40px 24px' }}>
         {/* Breadcrumb */}
         <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '24px', display: 'flex', gap: '8px' }}>
@@ -326,6 +322,5 @@ export default async function OrderPage({
           </div>
         </div>
       </main>
-    </div>
   )
 }

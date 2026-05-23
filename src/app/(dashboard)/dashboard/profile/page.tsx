@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation'
 import { getSession } from '@/lib/session'
 import { getProfileData } from '@/actions/profile'
-import DashboardNav from '@/components/DashboardNav'
 import ProfileForm from './ProfileForm'
 import InnVerification from '../InnVerification'
 
@@ -13,8 +12,6 @@ export default async function ProfilePage() {
   if (!user) redirect('/login')
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
-      <DashboardNav active="profile" />
       <main style={{ maxWidth: '800px', margin: '0 auto', padding: '40px 24px' }}>
         <div style={{ marginBottom: '32px' }}>
           <h1 style={{ fontSize: '28px', fontWeight: 700, color: 'var(--text)', marginBottom: '4px' }}>Профиль</h1>
@@ -60,6 +57,5 @@ export default async function ProfilePage() {
           </div>
         </div>
       </main>
-    </div>
   )
 }

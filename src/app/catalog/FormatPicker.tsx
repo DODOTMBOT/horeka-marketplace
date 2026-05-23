@@ -8,10 +8,12 @@ export default function FormatPicker({
   config,
   activeFormat,
   currentSearch,
+  dodoCount = 0,
 }: {
   config: CatalogConfig
   activeFormat: string | undefined
   currentSearch: string
+  dodoCount?: number
 }) {
   const router = useRouter()
   const [pending, startTransition] = useTransition()
@@ -57,6 +59,7 @@ export default function FormatPicker({
         .fmt-card:nth-child(1) { animation-delay: 0ms; }
         .fmt-card:nth-child(2) { animation-delay: 60ms; }
         .fmt-card:nth-child(3) { animation-delay: 120ms; }
+        .fmt-card:nth-child(4) { animation-delay: 180ms; }
         .fmt-card.active {
           box-shadow: 0 16px 48px rgba(0,0,0,0.22);
           transform: translateY(-3px) scale(1.01) !important;
@@ -80,6 +83,7 @@ export default function FormatPicker({
 
       <div style={{ display: 'flex', gap: '12px' }}>
         {config.formats.map((block, i) => {
+          const total = config.formats.length + 1
           const isActive = visualActive === block.key
           const isDimmed = visualActive !== undefined && visualActive !== block.key
           const isLight = block.textColor === 'light'
@@ -109,7 +113,7 @@ export default function FormatPicker({
                 color: isLight ? 'rgba(255,255,255,0.4)' : 'rgba(0,0,0,0.3)',
                 letterSpacing: '0.1em', marginBottom: '16px',
               }}>
-                {String(i + 1).padStart(2, '0')} / {String(config.formats.length).padStart(2, '0')}
+                {String(i + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}
               </p>
 
               <h2 style={{
@@ -165,6 +169,72 @@ export default function FormatPicker({
             </div>
           )
         })}
+
+        {/* Dodo special card */}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => router.push('/dodo')}
+          onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') router.push('/dodo') }}
+          className={`fmt-card${visualActive && visualActive !== '__dodo__' ? ' dimmed' : ''}`}
+          style={{
+            flex: 1, minWidth: 0,
+            background: '#e16919',
+            borderRadius: 'var(--r-xl)',
+            padding: '32px',
+            position: 'relative', overflow: 'hidden',
+            userSelect: 'none',
+          }}
+        >
+          <p style={{
+            fontFamily: 'var(--ff-mono)', fontSize: '10px', fontWeight: 600,
+            color: 'rgba(255,255,255,0.4)',
+            letterSpacing: '0.1em', marginBottom: '16px',
+          }}>
+            {String(config.formats.length + 1).padStart(2, '0')} / {String(config.formats.length + 1).padStart(2, '0')} · СПЕЦПРОЕКТ
+          </p>
+
+          <h2 style={{
+            fontFamily: 'var(--ff-display)', fontWeight: 800,
+            fontSize: '28px', color: '#fff',
+            lineHeight: 1.05, letterSpacing: '-0.04em', marginBottom: '4px',
+          }}>
+            Додо Пицца
+          </h2>
+          <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.55)', marginBottom: '14px', fontWeight: 500 }}>
+            Только для франчайзи
+          </p>
+          <p style={{ fontSize: '13px', color: 'rgba(255,255,255,0.55)', lineHeight: 1.55, marginBottom: '20px' }}>
+            Услуги и инструменты, заточенные под стандарты и процессы сети Додо Пицца.
+          </p>
+
+          <div style={{
+            display: 'flex', gap: '16px', marginBottom: '20px',
+            padding: '12px 14px', borderRadius: 'var(--r-md)', background: 'rgba(255,255,255,0.1)',
+          }}>
+            <div>
+              <p style={{ fontFamily: 'var(--ff-display)', fontWeight: 900, fontSize: '24px', color: '#fff', lineHeight: 1, letterSpacing: '-0.04em' }}>
+                {dodoCount}
+              </p>
+              <p style={{ fontSize: '10px', color: 'rgba(255,255,255,0.55)', marginTop: '2px', fontFamily: 'var(--ff-mono)', letterSpacing: '0.04em' }}>
+                УСЛУГ
+              </p>
+            </div>
+            <div style={{ borderLeft: '1px solid rgba(255,255,255,0.15)', paddingLeft: '16px' }}>
+              <p style={{ fontSize: '13px', fontWeight: 700, color: '#fff', lineHeight: 1.3 }}>Спецпроект</p>
+              <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.55)', marginTop: '2px' }}>Отдельная страница</p>
+            </div>
+          </div>
+
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+            <span style={{ fontFamily: 'var(--ff-display)', fontWeight: 700, fontSize: '13px', color: '#fff', letterSpacing: '-0.01em' }}>
+              Перейти
+            </span>
+            <svg className="fmt-cta-arrow" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2.5" strokeLinecap="round">
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+          </div>
+        </div>
       </div>
 
       {/* Global loading shimmer when navigating */}
