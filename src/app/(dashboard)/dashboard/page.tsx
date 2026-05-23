@@ -58,7 +58,7 @@ export default async function DashboardPage() {
   )
 
   return (
-    <div style={{ padding: '32px 36px', maxWidth: '1100px' }}>
+    <div style={{ padding: '32px 36px', maxWidth: '1100px', margin: '0 auto' }}>
 
       {/* Header */}
       <div style={{ marginBottom: '28px', display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap' }}>
