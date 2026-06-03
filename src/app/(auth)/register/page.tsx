@@ -1,12 +1,10 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { register } from '@/actions/auth'
 import type { RegisterFormState } from '@/lib/definitions'
 import { LogoWordmark } from '@/components/Logo'
-
-const initialState: RegisterFormState = {}
 
 type BizType = 'SELF_EMPLOYED' | 'IP' | 'COMPANY'
 
@@ -50,11 +48,39 @@ function Field({ label, name, placeholder, type = 'text', hint, error, required 
 }
 
 export default function RegisterPage() {
-  const [state, formAction, pending] = useActionState(register, initialState)
+  const router = useRouter()
+  const [state, setState] = useState<RegisterFormState>({})
+  const [pending, setPending] = useState(false)
   const [showPwd, setShowPwd] = useState(false)
   const [password, setPassword] = useState('')
   const [role, setRole] = useState<'BUYER' | 'SELLER'>('BUYER')
   const [bizType, setBizType] = useState<BizType>('SELF_EMPLOYED')
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setPending(true)
+    setState({})
+    const fd = new FormData(e.currentTarget)
+    const body: Record<string, string> = {}
+    fd.forEach((v, k) => { body[k] = v as string })
+    try {
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+      if (data.errors) {
+        setState({ errors: data.errors })
+      } else {
+        router.push('/dashboard')
+      }
+    } catch {
+      setState({ errors: { general: ['Ошибка соединения. Попробуйте ещё раз.'] } })
+    } finally {
+      setPending(false)
+    }
+  }
 
   const strength = getPasswordStrength(password)
   const isSeller = role === 'SELLER'
@@ -143,7 +169,7 @@ export default function RegisterPage() {
           ))}
         </div>
 
-        <form action={formAction} noValidate>
+        <form onSubmit={handleSubmit}>
           <input type="hidden" name="role" value={role} />
           {isSeller && <input type="hidden" name="businessType" value={bizType} />}
 

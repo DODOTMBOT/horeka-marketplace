@@ -6,12 +6,21 @@ import OrderActions from './OrderActions'
 import ReviewForm from './ReviewForm'
 import PayButton from './PayButton'
 
-const STATUS_MAP: Record<string, { label: string; color: string; bg: string; desc: string }> = {
-  PENDING:   { label: 'Ожидает принятия', color: '#d97706', bg: '#fffbeb', desc: 'Исполнитель ещё не принял заказ' },
-  ACTIVE:    { label: 'В работе',         color: '#2563eb', bg: '#eff6ff', desc: 'Исполнитель выполняет заказ' },
-  COMPLETED: { label: 'Завершён',         color: '#16a34a', bg: '#f0fdf4', desc: 'Заказ успешно выполнен' },
-  CANCELLED: { label: 'Отменён',          color: '#dc2626', bg: '#fef2f2', desc: 'Заказ отменён' },
-  DISPUTED:  { label: 'Спор',             color: '#7c3aed', bg: '#f5f3ff', desc: 'Открыт спор' },
+import { REASON_LABELS } from '@/lib/disputeLabels'
+import { getDisputeConfig } from '@/lib/disputeConfig'
+
+const STATUS_MAP: Record<string, { label: string; color: string; bg: string; dot: string; desc: string }> = {
+  PENDING:     { label: 'Ожидает оплаты',       color: '#d97706', bg: '#fffbeb', dot: '#d97706', desc: 'Оплатите заказ, чтобы передать исполнителю' },
+  ACTIVE:      { label: 'Ожидает исполнителя',  color: '#2563eb', bg: '#eff6ff', dot: '#3b82f6', desc: 'Оплачен — исполнитель должен выйти на связь в течение 48 ч' },
+  IN_PROGRESS: { label: 'В работе',             color: '#7c3aed', bg: '#f5f3ff', dot: '#8b5cf6', desc: 'Исполнитель работает над заказом' },
+  COMPLETED:   { label: 'Завершён',             color: '#16a34a', bg: '#f0fdf4', dot: '#22c55e', desc: 'Заказ успешно выполнен' },
+  CANCELLED:   { label: 'Отменён',              color: '#dc2626', bg: '#fef2f2', dot: '#ef4444', desc: 'Заказ отменён' },
+  DISPUTED:    { label: 'Спор',                 color: '#d97706', bg: '#fffbeb', dot: '#f59e0b', desc: 'Открыт спор — ожидайте решения модератора' },
+}
+
+const LOG_STATUS_LABELS: Record<string, string> = {
+  PENDING: 'Создан', ACTIVE: 'Оплачен', IN_PROGRESS: 'В работе',
+  COMPLETED: 'Завершён', CANCELLED: 'Отменён', DISPUTED: 'Спор открыт',
 }
 
 export default async function OrderPage({
@@ -23,7 +32,7 @@ export default async function OrderPage({
 }) {
   const { id } = await params
   const { payment } = await searchParams
-  const [session, order] = await Promise.all([getSession(), getOrder(id)])
+  const [session, order, disputeCfg] = await Promise.all([getSession(), getOrder(id), getDisputeConfig()])
 
   if (!session) redirect('/login')
   if (!order) notFound()
@@ -57,10 +66,12 @@ export default async function OrderPage({
             width: '44px', height: '44px', borderRadius: '50%', flexShrink: 0,
             background: st.color, display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
-            {order.status === 'COMPLETED' && <span style={{ fontSize: '20px' }}>✓</span>}
+            {order.status === 'COMPLETED' && <span style={{ fontSize: '20px', color: '#fff' }}>✓</span>}
             {order.status === 'PENDING' && <span style={{ fontSize: '20px', color: '#fff' }}>⏳</span>}
-            {order.status === 'ACTIVE' && <span style={{ fontSize: '20px', color: '#fff' }}>⚙</span>}
+            {order.status === 'ACTIVE' && <span style={{ fontSize: '20px', color: '#fff' }}>📬</span>}
+            {order.status === 'IN_PROGRESS' && <span style={{ fontSize: '20px', color: '#fff' }}>⚙</span>}
             {order.status === 'CANCELLED' && <span style={{ fontSize: '20px', color: '#fff' }}>✕</span>}
+            {order.status === 'DISPUTED' && <span style={{ fontSize: '20px', color: '#fff' }}>⚖</span>}
           </div>
           <div style={{ flex: 1 }}>
             <p style={{ fontWeight: 700, fontSize: '16px', color: st.color }}>{st.label}</p>
@@ -317,8 +328,94 @@ export default async function OrderPage({
               </div>
             )}
 
+            {/* Dispute info block */}
+            {order.dispute && (
+              <div style={{
+                background: '#fffbeb', border: '1.5px solid #fde68a', borderRadius: '12px', padding: '20px',
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                  <span style={{ fontSize: '16px' }}>⚖️</span>
+                  <p style={{ fontFamily: 'var(--ff-display)', fontWeight: 800, fontSize: '14px', color: '#92400e', letterSpacing: '-0.02em' }}>
+                    Спор {order.dispute.status === 'OPEN' ? 'на рассмотрении' : order.dispute.status === 'CONFIRMED' ? '— подтверждён' : '— отклонён'}
+                  </p>
+                  <span style={{
+                    marginLeft: 'auto', fontSize: '10px', padding: '2px 8px', borderRadius: '999px', fontWeight: 700,
+                    background: order.dispute.status === 'OPEN' ? '#fef3c7' : order.dispute.status === 'CONFIRMED' ? '#dcfce7' : '#fee2e2',
+                    color: order.dispute.status === 'OPEN' ? '#92400e' : order.dispute.status === 'CONFIRMED' ? '#14532d' : '#7f1d1d',
+                  }}>
+                    {order.dispute.status === 'OPEN' ? 'Открыт' : order.dispute.status === 'CONFIRMED' ? 'Возврат' : 'Отклонён'}
+                  </span>
+                </div>
+                <p style={{ fontSize: '12px', color: '#92400e', marginBottom: '6px' }}>
+                  <strong>Причина:</strong> {REASON_LABELS[order.dispute.reason] ?? order.dispute.reason}
+                </p>
+                <p style={{ fontSize: '13px', color: '#78350f', lineHeight: 1.6, marginBottom: order.dispute.resolution ? '10px' : 0 }}>
+                  {order.dispute.description}
+                </p>
+                {order.dispute.resolution && (
+                  <div style={{ marginTop: '10px', padding: '10px 12px', background: '#fff', borderRadius: '8px', border: '1px solid #fde68a' }}>
+                    <p style={{ fontSize: '11px', fontWeight: 700, color: '#92400e', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '4px' }}>Решение модератора</p>
+                    <p style={{ fontSize: '13px', color: '#78350f', lineHeight: 1.5 }}>{order.dispute.resolution}</p>
+                  </div>
+                )}
+                {order.dispute.files.length > 0 && (
+                  <div style={{ marginTop: '10px', display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                    {order.dispute.files.map(f => (
+                      <a key={f.id} href={f.url} target="_blank" rel="noopener noreferrer" style={{
+                        fontSize: '12px', color: '#2563eb', textDecoration: 'none',
+                        display: 'flex', alignItems: 'center', gap: '6px',
+                      }}>
+                        📎 {f.name}
+                      </a>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Order log */}
+            {order.logs.length > 0 && (
+              <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-out)', padding: '20px' }}>
+                <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '14px' }}>
+                  История заказа
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                  {order.logs.map((log, i) => {
+                    const isLast = i === order.logs.length - 1
+                    return (
+                      <div key={log.id} style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flexShrink: 0 }}>
+                          <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: isLast ? 'var(--blue)' : 'var(--line)', marginTop: '5px' }} />
+                          {!isLast && <div style={{ width: '1px', background: 'var(--line)', flex: 1, minHeight: '16px', marginTop: '4px' }} />}
+                        </div>
+                        <div style={{ flex: 1, paddingBottom: isLast ? 0 : '4px' }}>
+                          <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ink)' }}>
+                            {LOG_STATUS_LABELS[log.toStatus] ?? log.toStatus}
+                          </p>
+                          {log.note && <p style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '2px' }}>{log.note}</p>}
+                          <p style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '2px' }}>
+                            {new Date(log.createdAt).toLocaleString('ru-RU', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                          </p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Actions */}
-            <OrderActions orderId={order.id} currentStatus={order.status} isBuyer={isBuyer} isSeller={isSeller} />
+            <OrderActions
+              orderId={order.id}
+              currentStatus={order.status}
+              isBuyer={isBuyer}
+              isSeller={isSeller}
+              paidAt={order.paidAt}
+              workStartedAt={order.workStartedAt}
+              disputeDelayHours={disputeCfg.disputeDelayHours}
+              autoCompleteHours={disputeCfg.autoCompleteHours}
+              minDescriptionLength={disputeCfg.minDescriptionLength}
+            />
           </div>
         </div>
       </main>

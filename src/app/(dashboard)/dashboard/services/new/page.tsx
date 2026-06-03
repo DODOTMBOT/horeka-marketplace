@@ -7,6 +7,7 @@ import ServiceForm from './ServiceForm'
 export default async function NewServicePage() {
   const session = await getSession()
   if (!session) redirect('/login')
+  if (session.role === 'BUYER') redirect('/dashboard/become-seller')
   if (session.role !== 'SELLER' && session.role !== 'ADMIN') redirect('/dashboard')
 
   const categories = await getCategories()

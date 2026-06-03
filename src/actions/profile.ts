@@ -100,7 +100,58 @@ export async function getProfileData() {
       id: true, name: true, email: true, phone: true,
       role: true, avatarUrl: true, bio: true,
       inn: true, innVerified: true, companyName: true,
+      businessType: true, ogrn: true, kpp: true, legalAddress: true,
+      bankAccount: true, bankBik: true, bankName: true, bankCorrAccount: true,
       portfolioUrls: true, createdAt: true,
     },
   })
+}
+
+export type BecomeSellerState = {
+  errors?: Record<string, string[]>
+  error?: string
+  success?: boolean
+}
+
+export async function becomeSeller(
+  _prev: BecomeSellerState,
+  formData: FormData
+): Promise<BecomeSellerState> {
+  const session = await getSession()
+  if (!session) return { error: 'Не авторизован' }
+  if (session.role === 'SELLER' || session.role === 'ADMIN') return { error: 'Вы уже исполнитель' }
+
+  const bizType = formData.get('businessType') as string
+  const inn = (formData.get('inn') as string)?.trim()
+  const companyName = (formData.get('companyName') as string)?.trim() || null
+  const ogrn = (formData.get('ogrn') as string)?.trim() || null
+  const kpp = (formData.get('kpp') as string)?.trim() || null
+  const legalAddress = (formData.get('legalAddress') as string)?.trim() || null
+  const bankAccount = (formData.get('bankAccount') as string)?.trim()
+  const bankBik = (formData.get('bankBik') as string)?.trim()
+  const bankName = (formData.get('bankName') as string)?.trim() || null
+  const bankCorrAccount = (formData.get('bankCorrAccount') as string)?.trim() || null
+
+  const errors: Record<string, string[]> = {}
+  if (!['SELF_EMPLOYED', 'IP', 'COMPANY'].includes(bizType)) errors.businessType = ['Выберите тип бизнеса']
+  if (!inn || inn.length < 10) errors.inn = ['Введите ИНН (10 или 12 цифр)']
+  if (!bankAccount || bankAccount.length !== 20) errors.bankAccount = ['Расчётный счёт — 20 цифр']
+  if (!bankBik || bankBik.length !== 9) errors.bankBik = ['БИК — 9 цифр']
+  if (Object.keys(errors).length) return { errors }
+
+  await prisma.user.update({
+    where: { id: session.userId },
+    data: {
+      role: 'SELLER',
+      businessType: bizType as 'SELF_EMPLOYED' | 'IP' | 'COMPANY',
+      inn, companyName, ogrn, kpp, legalAddress,
+      bankAccount, bankBik, bankName, bankCorrAccount,
+    },
+  })
+
+  await createSession({ userId: session.userId, email: session.email, name: session.name, role: 'SELLER' })
+
+  revalidatePath('/dashboard')
+  revalidatePath('/dashboard/profile')
+  return { success: true }
 }

@@ -1,16 +1,42 @@
 'use client'
 
-import { useActionState, useState } from 'react'
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { login } from '@/actions/auth'
 import type { LoginFormState } from '@/lib/definitions'
 import { LogoWordmark } from '@/components/Logo'
 
-const initialState: LoginFormState = {}
-
 export default function LoginPage() {
-  const [state, formAction, pending] = useActionState(login, initialState)
+  const router = useRouter()
+  const [state, setState] = useState<LoginFormState>({})
+  const [pending, setPending] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    setPending(true)
+    setState({})
+    const fd = new FormData(e.currentTarget)
+    const body: Record<string, string> = {}
+    fd.forEach((v, k) => { body[k] = v as string })
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+      if (data.errors) {
+        setState({ errors: data.errors })
+      } else {
+        router.push('/dashboard')
+      }
+    } catch {
+      setState({ errors: { general: ['Ошибка соединения. Попробуйте ещё раз.'] } })
+    } finally {
+      setPending(false)
+    }
+  }
 
   return (
     <div style={{ display: 'flex', minHeight: '100vh', background: '#0a0a0a' }}>
@@ -45,7 +71,7 @@ export default function LoginPage() {
           <p style={{
             fontFamily: 'var(--ff-display)',
             fontWeight: 700,
-            fontSize: 'clamp(28px, 3.8vw, 48px)',
+            fontSize: 'clamp(28px, 3.8vw, 50px)',
             color: 'rgba(255,255,255,0.3)',
             letterSpacing: '-0.04em', marginTop: '6px',
           }}>В АККАУНТ</p>
@@ -74,7 +100,7 @@ export default function LoginPage() {
           marginBottom: '32px',
         }}>ВОЙТИ</p>
 
-        <form action={formAction} noValidate>
+        <form onSubmit={handleSubmit}>
           {state.errors?.general && (
             <div style={{
               background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)',

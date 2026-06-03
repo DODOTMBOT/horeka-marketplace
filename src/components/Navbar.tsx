@@ -13,7 +13,6 @@ const NAV_LINKS = [
   { href: '/catalog',   label: 'Каталог' },
   { href: '/suppliers', label: 'Поставщики' },
   { href: '/jobs',      label: 'Вакансии' },
-  { href: '/register?role=SELLER', label: 'Для бизнеса' },
 ]
 
 export default async function Navbar() {
@@ -22,6 +21,12 @@ export default async function Navbar() {
     getUserCount(),
     getNavbarConfig(),
   ])
+
+  const bizHref = !session
+    ? '/register?role=SELLER'
+    : session.role === 'BUYER'
+      ? '/dashboard/become-seller'
+      : '/dashboard/services/new'
 
   return (
     <header style={{
@@ -88,6 +93,14 @@ export default async function Navbar() {
               {link.label}
             </Link>
           ))}
+          <Link href={bizHref} className="nav-link" style={{
+            padding: '7px 13px', borderRadius: 'var(--r-sm)',
+            fontSize: '14px', fontWeight: 500, color: 'var(--ink)',
+            textDecoration: 'none', whiteSpace: 'nowrap',
+            transition: 'background 0.12s',
+          }}>
+            Для бизнеса
+          </Link>
         </nav>
 
         {/* Right */}

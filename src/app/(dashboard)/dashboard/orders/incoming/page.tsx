@@ -50,8 +50,9 @@ export default async function IncomingOrdersPage() {
             const st = STATUS[order.status] ?? STATUS.PENDING
             const initials = order.buyer.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
             return (
-              <div key={order.id} style={{
-                background: '#fff', borderRadius: '14px', border: '1px solid var(--line)', padding: '18px 22px',
+              <Link key={order.id} href={`/dashboard/orders/${order.id}`} style={{
+                display: 'block', background: '#fff', borderRadius: '14px', border: '1px solid var(--line)',
+                padding: '18px 22px', textDecoration: 'none',
               }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
 
@@ -92,7 +93,7 @@ export default async function IncomingOrdersPage() {
                     <OrderStatusButton orderId={order.id} currentStatus={order.status} />
                   </div>
                 </div>
-              </div>
+              </Link>
             )
           })}
         </div>

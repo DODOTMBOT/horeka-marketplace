@@ -1,10 +1,10 @@
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
 import { getHomepageConfig } from '@/lib/siteConfig'
-import type { GridSection, HeroV2 } from '@/lib/siteConfig'
+import type { HeroV2 } from '@/lib/siteConfig'
 import type { Metadata } from 'next'
 import AiPanelAnimated from './AiPanelAnimated'
-import { prisma } from '@/lib/prisma'
+import CloudSections from '@/components/CloudSections'
 
 export const metadata: Metadata = {
   title: 'Unit One — платформа для профессионалов HoReCa',
@@ -186,161 +186,16 @@ function HeroSection({ hero }: { hero: HeroV2 }) {
   )
 }
 
-function SectionCard({ section, index, total }: { section: GridSection; index: number; total: number }) {
-  const isLight = section.textColor === 'light'
-  const textMain  = isLight ? '#fff' : 'var(--ink)'
-  const textSub   = isLight ? 'rgba(255,255,255,0.55)' : 'rgba(0,0,0,0.45)'
-  const textMuted = isLight ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.3)'
-  const divider   = isLight ? 'rgba(255,255,255,0.1)'  : 'rgba(0,0,0,0.08)'
-  const catBg     = isLight ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.05)'
-  const catBorder = isLight ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)'
-
-  return (
-    <div style={{
-      background: section.bgColor,
-      padding: '36px 32px',
-      display: 'flex',
-      flexDirection: 'column',
-      borderRight: `1px solid ${divider}`,
-      position: 'relative',
-      overflow: 'hidden',
-    }}>
-      {/* Dodo badge */}
-      {index === 0 && (
-        <Link href="/dodo" style={{
-          position: 'absolute', top: '28px', right: '-8px',
-          display: 'inline-flex', alignItems: 'center',
-          padding: '8px 20px', borderRadius: '999px',
-          background: '#e16919', color: '#fff',
-          fontSize: '13px', fontWeight: 800,
-          textDecoration: 'none', letterSpacing: '-0.01em',
-          transform: 'rotate(3deg)',
-          boxShadow: '0 4px 16px rgba(225,105,25,0.45)',
-          whiteSpace: 'nowrap',
-          zIndex: 1,
-        }}>
-          Спецпроект Додо
-        </Link>
-      )}
-      {/* Header */}
-      <div style={{ marginBottom: '28px' }}>
-        <p style={{
-          fontFamily: 'var(--ff-mono)', fontSize: '9px', fontWeight: 700,
-          color: textMuted, letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: '12px',
-        }}>
-          {String(index + 1).padStart(2, '0')} / {String(total).padStart(2, '0')}
-        </p>
-        <h2 style={{
-          fontFamily: 'var(--ff-display)', fontWeight: 800,
-          fontSize: '26px', color: textMain,
-          lineHeight: 1.05, letterSpacing: '-0.04em', marginBottom: '6px',
-        }}>
-          {section.title}
-        </h2>
-        <p style={{ fontSize: '13px', color: textSub, lineHeight: 1.4 }}>
-          {section.subtitle}
-        </p>
-      </div>
-
-      {/* Category rows */}
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', flex: 1 }}>
-        {section.categories.map((cat, ci) => (
-          <Link
-            key={ci}
-            href={cat.href ?? (cat.categorySlug ? `/catalog?category=${cat.categorySlug}` : section.ctaHref)}
-            style={{
-              background: catBg,
-              border: `1px solid ${catBorder}`,
-              borderRadius: '12px',
-              padding: '14px 16px',
-              textDecoration: 'none',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              gap: '12px',
-              transition: 'background 0.15s',
-            }}
-          >
-            <div>
-              <p style={{
-                fontSize: '14px', fontWeight: 700, color: textMain,
-                letterSpacing: '-0.02em', marginBottom: '2px',
-              }}>
-                {cat.name}
-              </p>
-              <p style={{ fontSize: '11px', color: textSub, lineHeight: 1.3 }}>
-                {cat.hint}
-              </p>
-            </div>
-            <p style={{
-              fontFamily: 'var(--ff-display)', fontWeight: 900,
-              fontSize: '24px', color: textMain, lineHeight: 1,
-              letterSpacing: '-0.04em', flexShrink: 0,
-            }}>
-              {typeof cat.count === 'number' ? cat.count.toLocaleString('ru-RU') : cat.count}
-            </p>
-          </Link>
-        ))}
-      </div>
-
-      {/* Footer */}
-      <div style={{ marginTop: '24px', paddingTop: '20px', borderTop: `1px solid ${divider}`, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <p style={{ fontSize: '11px', color: textMuted, lineHeight: 1.5 }}>
-          {section.stats}
-        </p>
-        <Link href={section.ctaHref} style={{
-          fontFamily: 'var(--ff-display)', fontWeight: 700,
-          fontSize: '13px', color: textMain,
-          textDecoration: 'none', letterSpacing: '-0.01em',
-          display: 'inline-flex', alignItems: 'center', gap: '5px', flexShrink: 0,
-          opacity: 0.8,
-        }}>
-          смотреть →
-        </Link>
-      </div>
-    </div>
-  )
-}
 
 export default async function LandingPage() {
-  const [cfg, formatCounts] = await Promise.all([
-    getHomepageConfig(),
-    prisma.service.groupBy({
-      by: ['format'],
-      where: { status: 'ACTIVE' },
-      _count: { id: true },
-    }),
-  ])
-
-  const countByFormat: Record<string, number> = {}
-  for (const r of formatCounts) countByFormat[r.format] = r._count.id
-
+  const cfg = await getHomepageConfig()
   const hero = cfg.heroV2
-  const rawSections = cfg.gridSections && cfg.gridSections.length > 0 ? cfg.gridSections : []
-
-  // inject real counts into format-based category cards
-  const sections = rawSections.map(section => ({
-    ...section,
-    categories: section.categories.map(cat => {
-      const m = cat.href?.match(/[?&]format=(\w+)/)
-      if (m) return { ...cat, count: countByFormat[m[1]] ?? 0 }
-      return cat
-    }),
-  }))
 
   return (
     <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
       <Navbar />
       <HeroSection hero={hero} />
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(3, 1fr)',
-        borderTop: '1px solid var(--line)',
-      }}>
-        {sections.map((section, i) => (
-          <SectionCard key={i} section={section} index={i} total={sections.length} />
-        ))}
-      </div>
+      <CloudSections />
     </div>
   )
 }

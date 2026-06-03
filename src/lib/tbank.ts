@@ -1,12 +1,5 @@
-const IS_TEST = process.env.TBANK_TEST !== 'false'
-
-const TERMINAL = IS_TEST
-  ? (process.env.TBANK_TERMINAL ?? '1779261717054DEMO')
-  : (process.env.TBANK_TERMINAL_PROD ?? '1779261717071')
-
-const PASSWORD = IS_TEST
-  ? (process.env.TBANK_PASSWORD ?? '')
-  : (process.env.TBANK_PASSWORD_PROD ?? '')
+const TERMINAL = process.env.TBANK_TERMINAL ?? ''
+const PASSWORD = process.env.TBANK_PASSWORD ?? ''
 
 const BASE_URL = 'https://securepay.tinkoff.ru/v2'
 
@@ -61,7 +54,10 @@ export async function initPayment(opts: {
       console.error('[tbank] non-JSON response', res.status, text.slice(0, 300))
       return { error: `Платёжный сервис недоступен (HTTP ${res.status})` }
     }
-    if (!data.Success) return { error: (data.Message as string) ?? `T-Bank error: ${JSON.stringify(data)}` }
+    if (!data.Success) {
+      console.error('[tbank] init failed:', JSON.stringify(data))
+      return { error: (data.Message as string) ?? `T-Bank error: ${JSON.stringify(data)}` }
+    }
     return { paymentId: String(data.PaymentId), paymentUrl: data.PaymentURL as string }
   } catch (e) {
     console.error('[tbank] fetch error', e)
@@ -77,4 +73,3 @@ export async function verifyNotification(params: Record<string, unknown>): Promi
   return (await generateToken(copy)) === received
 }
 
-export const tbankIsTest = IS_TEST

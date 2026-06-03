@@ -11,6 +11,7 @@ export type ActivityAction =
   | 'PROFILE_UPDATE' | 'INN_VERIFY'
   | 'FAVORITE_ADD' | 'FAVORITE_REMOVE'
   | 'ADMIN_BLOCK_USER' | 'ADMIN_SET_ROLE' | 'ADMIN_DELETE_REVIEW' | 'ADMIN_RESOLVE_DISPUTE' | 'ADMIN_INN_VERIFY'
+  | 'DISPUTE_RESOLVE'
 
 export async function logActivity({
   userId,

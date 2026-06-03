@@ -6,11 +6,30 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createNotification } from './notifications'
 import { logActivity } from '@/lib/activity'
+import { OrderStatus } from '@prisma/client'
 
 export type CreateOrderState = {
   error?: string
   success?: boolean
   orderId?: string
+}
+
+async function writeOrderLog(opts: {
+  orderId: string
+  userId?: string
+  fromStatus?: OrderStatus
+  toStatus: OrderStatus
+  note?: string
+}) {
+  await prisma.orderLog.create({
+    data: {
+      orderId: opts.orderId,
+      userId: opts.userId ?? null,
+      fromStatus: opts.fromStatus ?? null,
+      toStatus: opts.toStatus,
+      note: opts.note ?? null,
+    },
+  })
 }
 
 export async function createOrder(
@@ -47,6 +66,8 @@ export async function createOrder(
     include: { service: { include: { seller: true } } },
   })
 
+  await writeOrderLog({ orderId: order.id, userId: session.userId, toStatus: 'PENDING', note: 'Заказ создан' })
+
   await createNotification({
     userId: order.service.sellerId,
     type: 'ORDER_NEW',
@@ -58,6 +79,75 @@ export async function createOrder(
 
   revalidatePath('/dashboard/orders')
   redirect(`/dashboard/orders/${order.id}`)
+}
+
+export async function startWork(orderId: string): Promise<{ error?: string }> {
+  const session = await getSession()
+  if (!session) return { error: 'Не авторизован' }
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { service: true },
+  })
+  if (!order) return { error: 'Заказ не найден' }
+  if (order.service.sellerId !== session.userId) return { error: 'Нет доступа' }
+  if (order.status !== 'ACTIVE') return { error: 'Заказ не в нужном статусе' }
+
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { status: 'IN_PROGRESS', workStartedAt: new Date() },
+  })
+
+  await writeOrderLog({ orderId, userId: session.userId, fromStatus: 'ACTIVE', toStatus: 'IN_PROGRESS', note: 'Исполнитель начал работу' })
+
+  await createNotification({
+    userId: order.buyerId,
+    type: 'ORDER_STATUS',
+    title: 'Исполнитель начал работу',
+    body: `По заказу "${order.service.title}" исполнитель приступил к выполнению`,
+    link: `/dashboard/orders/${orderId}`,
+  })
+
+  await logActivity({ userId: session.userId, action: 'ORDER_STATUS', target: orderId, meta: { status: 'IN_PROGRESS' } })
+
+  revalidatePath(`/dashboard/orders/${orderId}`)
+  revalidatePath('/dashboard/orders/incoming')
+  return {}
+}
+
+export async function completeWork(orderId: string): Promise<{ error?: string }> {
+  const session = await getSession()
+  if (!session) return { error: 'Не авторизован' }
+
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { service: true },
+  })
+  if (!order) return { error: 'Заказ не найден' }
+  if (order.service.sellerId !== session.userId) return { error: 'Нет доступа' }
+  if (order.status !== 'IN_PROGRESS') return { error: 'Заказ не в работе' }
+
+  const now = new Date()
+  await prisma.order.update({
+    where: { id: orderId },
+    data: { status: 'COMPLETED', completedAt: now },
+  })
+
+  await writeOrderLog({ orderId, userId: session.userId, fromStatus: 'IN_PROGRESS', toStatus: 'COMPLETED', note: 'Исполнитель отметил заказ выполненным' })
+
+  await createNotification({
+    userId: order.buyerId,
+    type: 'ORDER_STATUS',
+    title: 'Заказ выполнен',
+    body: `Исполнитель завершил работу по заказу "${order.service.title}". Пожалуйста, оставьте отзыв.`,
+    link: `/dashboard/orders/${orderId}`,
+  })
+
+  await logActivity({ userId: session.userId, action: 'ORDER_STATUS', target: orderId, meta: { status: 'COMPLETED' } })
+
+  revalidatePath(`/dashboard/orders/${orderId}`)
+  revalidatePath('/dashboard/orders/incoming')
+  return {}
 }
 
 export async function getMyOrders() {
@@ -74,6 +164,7 @@ export async function getMyOrders() {
         },
       },
       review: true,
+      dispute: { select: { status: true } },
     },
     orderBy: { createdAt: 'desc' },
   })
@@ -89,6 +180,7 @@ export async function getIncomingOrders() {
       service: { include: { category: true } },
       buyer: { select: { id: true, name: true, avatarUrl: true, phone: true } },
       review: true,
+      dispute: { select: { status: true } },
     },
     orderBy: { createdAt: 'desc' },
   })
@@ -109,9 +201,16 @@ export async function getOrder(id: string) {
       },
       buyer: { select: { id: true, name: true, avatarUrl: true, phone: true } },
       review: true,
+      dispute: {
+        include: {
+          files: true,
+          openedBy: { select: { id: true, name: true } },
+          resolvedBy: { select: { id: true, name: true } },
+        },
+      },
+      logs: { orderBy: { createdAt: 'asc' } },
     },
   })
-  // Note: digitalFiles is included via service — it's a JSON field on Service model
 }
 
 export async function updateOrderStatus(
@@ -133,46 +232,25 @@ export async function updateOrderStatus(
 
   if (!isSeller && !isBuyer) return { error: 'Нет доступа' }
 
-  // Buyers can cancel PENDING or open dispute on ACTIVE
   if (isBuyer && !isSeller) {
     if (status === 'CANCELLED' && order.status !== 'PENDING') return { error: 'Нельзя отменить' }
-    if (status === 'DISPUTED' && order.status !== 'ACTIVE') return { error: 'Спор можно открыть только по активному заказу' }
-    if (status !== 'CANCELLED' && status !== 'DISPUTED') return { error: 'Нельзя изменить статус' }
-  }
-
-  let disputeConversationId: string | undefined
-  if (status === 'DISPUTED') {
-    // Auto-create conversation between buyer and seller for this dispute
-    const sellerId = order.service.sellerId
-    const existing = await prisma.conversation.findFirst({
-      where: {
-        serviceId: order.serviceId,
-        participants: { every: { userId: { in: [order.buyerId, sellerId] } } },
-      },
-      include: { participants: true },
-    })
-    if (existing && existing.participants.length === 2) {
-      disputeConversationId = existing.id
-    } else {
-      const conv = await prisma.conversation.create({
-        data: {
-          serviceId: order.serviceId,
-          participants: { create: [{ userId: order.buyerId }, { userId: sellerId }] },
-        },
-      })
-      disputeConversationId = conv.id
-    }
+    if (status !== 'CANCELLED') return { error: 'Нельзя изменить статус' }
   }
 
   await prisma.order.update({
     where: { id: orderId },
     data: {
       status,
-      ...(status === 'DISPUTED' ? {
-        disputeReason: disputeReason?.trim() || null,
-        disputeConversationId,
-      } : {}),
+      ...(status === 'CANCELLED' ? { completedAt: new Date() } : {}),
     },
+  })
+
+  await writeOrderLog({
+    orderId,
+    userId: session.userId,
+    fromStatus: order.status as OrderStatus,
+    toStatus: status as OrderStatus,
+    note: disputeReason ? `Причина: ${disputeReason}` : undefined,
   })
 
   const statusLabels: Record<string, string> = {
@@ -192,9 +270,9 @@ export async function updateOrderStatus(
 
   await logActivity({
     userId: session.userId,
-    action: status === 'DISPUTED' ? 'ORDER_DISPUTE' : 'ORDER_STATUS',
+    action: 'ORDER_STATUS',
     target: orderId,
-    meta: { status, serviceTitle: order.service.title, ...(disputeReason ? { disputeReason } : {}) },
+    meta: { status, serviceTitle: order.service.title },
   })
 
   revalidatePath(`/dashboard/orders/${orderId}`)
@@ -221,10 +299,12 @@ export async function getDashboardStats() {
       : null
     return { services, orders, reviews: reviews.length, rating }
   } else {
-    const [orders, reviews] = await Promise.all([
+    const [orders, reviews, completed, pending] = await Promise.all([
       prisma.order.count({ where: { buyerId: session.userId } }),
       prisma.review.count({ where: { authorId: session.userId } }),
+      prisma.order.count({ where: { buyerId: session.userId, status: 'COMPLETED' } }),
+      prisma.order.count({ where: { buyerId: session.userId, status: { in: ['PENDING', 'ACTIVE', 'IN_PROGRESS'] } } }),
     ])
-    return { services: null, orders, reviews, rating: null }
+    return { services: null, orders, reviews, rating: null, completed, pending }
   }
 }

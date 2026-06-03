@@ -30,10 +30,14 @@ function Stars({ rating, size = 13 }: { rating: number; size?: number }) {
   return (
     <span>
       {[1, 2, 3, 4, 5].map(i => (
-        <span key={i} style={{ color: i <= rating ? '#f59e0b' : '#d1d9e0', fontSize: `${size}px` }}>★</span>
+        <span key={i} style={{ color: i <= rating ? '#d97706' : '#d1d5db', fontSize: `${size}px` }}>★</span>
       ))}
     </span>
   )
+}
+
+const BIZ_LABELS: Record<string, string> = {
+  SELF_EMPLOYED: 'Самозанятый', IP: 'ИП', COMPANY: 'ООО',
 }
 
 export default async function SellerPage({ params }: { params: Promise<{ id: string }> }) {
@@ -54,9 +58,9 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
   if (!seller) notFound()
 
   const initials = seller.name.split(' ').map(w => w[0]).slice(0, 2).join('').toUpperCase()
-  const allRatings = allReviewsRaw.map(r => ({ rating: r.rating }))
-  const rating = avg(allRatings)
+  const rating = avg(allReviewsRaw.map(r => ({ rating: r.rating })))
   const memberSince = new Date(seller.createdAt).toLocaleDateString('ru-RU', { year: 'numeric', month: 'long' })
+  const bizLabel = seller.businessType ? BIZ_LABELS[seller.businessType as string] ?? null : null
 
   const ratingDist = [5, 4, 3, 2, 1].map(star => ({
     star,
@@ -64,139 +68,155 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
   }))
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)' }}>
+    <div style={{ minHeight: '100vh', background: 'var(--paper)' }}>
       <Navbar />
 
-      <main style={{ maxWidth: '1100px', margin: '0 auto', padding: '32px 24px' }}>
+      <main style={{ maxWidth: '1100px', margin: '0 auto', padding: '28px 24px' }}>
 
         {/* Breadcrumb */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '20px', fontSize: '13px', color: 'var(--text-muted)' }}>
-          <Link href="/" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Главная</Link>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '20px', fontSize: '12px', color: 'var(--muted)' }}>
+          <Link href="/" style={{ color: 'var(--muted)', textDecoration: 'none' }}>Главная</Link>
           <span>›</span>
-          <Link href="/catalog" style={{ color: 'var(--text-muted)', textDecoration: 'none' }}>Каталог</Link>
+          <Link href="/catalog" style={{ color: 'var(--muted)', textDecoration: 'none' }}>Каталог</Link>
           <span>›</span>
-          <span style={{ color: 'var(--text)' }}>{seller.companyName ?? seller.name}</span>
+          <span style={{ color: 'var(--ink)', fontWeight: 600 }}>{seller.companyName ?? seller.name}</span>
         </div>
 
-        {/* Header card */}
+        {/* Profile header */}
         <div style={{
-          background: 'var(--surface)', borderRadius: 'var(--radius)',
-          boxShadow: 'var(--shadow-out)', overflow: 'hidden', marginBottom: '20px',
+          background: '#fff', borderRadius: '20px',
+          border: '1px solid var(--line)', overflow: 'hidden',
+          marginBottom: '20px',
         }}>
-          {/* Top gradient banner */}
-          <div style={{ height: '80px', background: 'linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%)' }} />
+          {/* Dark top strip */}
+          <div style={{ height: '72px', background: 'var(--ink)', position: 'relative', overflow: 'hidden' }}>
+            <div style={{
+              position: 'absolute', inset: 0,
+              backgroundImage: 'radial-gradient(circle at 30% 50%, rgba(215,255,58,0.12) 0%, transparent 60%)',
+            }} />
+          </div>
 
-          <div style={{ padding: '0 28px 28px', marginTop: '-40px' }}>
-            <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: '20px' }}>
+          <div style={{ padding: '0 28px 24px', marginTop: '-36px' }}>
+            <div style={{ display: 'flex', gap: '20px', alignItems: 'flex-end', flexWrap: 'wrap', marginBottom: '16px' }}>
               {/* Avatar */}
               <div style={{
-                width: '80px', height: '80px', borderRadius: '20px', flexShrink: 0,
-                background: 'var(--primary)', display: 'flex', alignItems: 'center',
-                justifyContent: 'center', color: '#fff', fontSize: '28px', fontWeight: 800,
-                boxShadow: '0 4px 16px rgba(0,0,0,0.15)', border: '3px solid #fff',
-                overflow: 'hidden',
+                width: '72px', height: '72px', borderRadius: '16px', flexShrink: 0,
+                background: 'var(--ink-2)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontFamily: 'var(--ff-display)', fontWeight: 800, fontSize: '24px', color: 'var(--lime)',
+                border: '3px solid #fff', overflow: 'hidden',
               }}>
                 {seller.avatarUrl
-                  ? <img src={seller.avatarUrl} style={{ width: '100%', height: '100%', borderRadius: '20px', objectFit: 'cover' }} alt="" />
+                  ? <img src={seller.avatarUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
                   : initials}
               </div>
 
               <div style={{ flex: 1, paddingBottom: '4px', minWidth: '200px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', flexWrap: 'wrap' }}>
-                  <h1 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.4px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '4px' }}>
+                  <h1 style={{ fontFamily: 'var(--ff-display)', fontSize: '22px', fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.03em' }}>
                     {seller.companyName ?? seller.name}
                   </h1>
                   {seller.innVerified && (
-                    <div style={{
-                      display: 'flex', alignItems: 'center', gap: '5px',
-                      background: '#f0fdf4', border: '1px solid #bbf7d0',
-                      borderRadius: '20px', padding: '3px 10px',
-                      fontSize: '12px', fontWeight: 600, color: '#16a34a',
+                    <span style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '4px',
+                      background: '#dcfce7', border: '1px solid #86efac',
+                      borderRadius: '999px', padding: '3px 10px',
+                      fontSize: '11px', fontWeight: 700, color: '#15803d',
                     }}>
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
                         <polyline points="20 6 9 17 4 12"/>
                       </svg>
                       ИНН верифицирован
-                    </div>
+                    </span>
+                  )}
+                  {bizLabel && (
+                    <span style={{
+                      padding: '3px 10px', borderRadius: '999px',
+                      background: 'var(--paper-2)', color: 'var(--muted)',
+                      fontSize: '11px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em',
+                    }}>
+                      {bizLabel}
+                    </span>
                   )}
                 </div>
                 {seller.companyName && (
-                  <p style={{ fontSize: '13px', color: 'var(--text-muted)', marginTop: '2px' }}>{seller.name}</p>
+                  <p style={{ fontSize: '13px', color: 'var(--muted)' }}>{seller.name}</p>
                 )}
               </div>
             </div>
 
-            {/* Bio */}
             {seller.bio && (
-              <p style={{ fontSize: '14px', color: 'var(--text)', lineHeight: 1.7, marginBottom: '20px', maxWidth: '680px' }}>
+              <p style={{ fontSize: '14px', color: 'var(--ink)', lineHeight: 1.7, marginBottom: '18px', maxWidth: '680px', opacity: 0.75 }}>
                 {seller.bio}
               </p>
             )}
 
-            {/* Stats row */}
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+            {/* Stats pills */}
+            <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
               {[
-                { label: 'Услуги', value: String(seller.services.length), icon: '📦' },
-                { label: 'Отзывы', value: String(allReviewsRaw.length), icon: '💬' },
-                { label: 'Рейтинг', value: rating ? `★ ${rating}` : '—', icon: '⭐' },
-                { label: 'На платформе', value: memberSince, icon: '📅' },
+                { label: 'услуг', value: String(seller.services.length) },
+                { label: 'отзывов', value: String(allReviewsRaw.length) },
+                ...(rating ? [{ label: 'рейтинг', value: `★ ${rating}` }] : []),
+                { label: 'на платформе с', value: memberSince },
               ].map(stat => (
                 <div key={stat.label} style={{
-                  background: 'var(--bg)', borderRadius: 'var(--radius-sm)',
-                  boxShadow: 'var(--shadow-in)', padding: '12px 16px',
-                  display: 'flex', alignItems: 'center', gap: '10px',
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  padding: '7px 14px', borderRadius: '999px',
+                  background: 'var(--paper-2)', border: '1px solid var(--line)',
                 }}>
-                  <span style={{ fontSize: '18px' }}>{stat.icon}</span>
-                  <div>
-                    <p style={{ fontSize: '15px', fontWeight: 700, color: stat.label === 'Рейтинг' ? '#f59e0b' : 'var(--text)', lineHeight: 1 }}>
-                      {stat.value}
-                    </p>
-                    <p style={{ fontSize: '11px', color: 'var(--text-muted)', marginTop: '2px' }}>{stat.label}</p>
-                  </div>
+                  <span style={{ fontFamily: 'var(--ff-display)', fontWeight: 800, fontSize: '14px', color: 'var(--ink)' }}>
+                    {stat.value}
+                  </span>
+                  <span style={{ fontSize: '12px', color: 'var(--muted)', fontWeight: 500 }}>
+                    {stat.label}
+                  </span>
                 </div>
               ))}
             </div>
           </div>
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: '20px', alignItems: 'start' }}>
+        {/* Main content */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '20px', alignItems: 'start' }}>
 
-          {/* Left: services + portfolio + reviews */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          {/* Left */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
 
             {/* Services */}
             {seller.services.length > 0 && (
-              <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-out)', padding: '24px' }}>
-                <h2 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text)', marginBottom: '18px' }}>
-                  Услуги ({seller.services.length})
+              <div style={{ background: '#fff', borderRadius: '20px', border: '1px solid var(--line)', padding: '24px' }}>
+                <h2 style={{ fontFamily: 'var(--ff-display)', fontSize: '16px', fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.02em', marginBottom: '18px' }}>
+                  Услуги · {seller.services.length}
                 </h2>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '14px' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '12px' }}>
                   {seller.services.map(service => {
                     const sRating = service.reviews.length
                       ? (service.reviews.reduce((s, r) => s + r.rating, 0) / service.reviews.length).toFixed(1)
                       : null
                     return (
                       <Link key={service.id} href={`/catalog/${service.id}`} style={{ textDecoration: 'none' }}>
-                        <div className="card-hover" style={{
-                          background: 'var(--bg)', borderRadius: 'var(--radius-sm)',
-                          border: '1px solid var(--border)', overflow: 'hidden',
+                        <div style={{
+                          background: 'var(--paper)', borderRadius: '14px',
+                          border: '1px solid var(--line)', overflow: 'hidden',
+                          transition: 'border-color 0.15s',
                         }}>
-                          <div style={{ height: '130px', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '36px', overflow: 'hidden' }}>
+                          <div style={{ height: '120px', background: 'var(--paper-2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '32px', overflow: 'hidden' }}>
                             {service.images[0]
                               ? <img src={service.images[0]} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                               : service.category.icon}
                           </div>
                           <div style={{ padding: '12px 14px' }}>
                             <p style={{
-                              fontSize: '13px', fontWeight: 600, color: 'var(--text)',
-                              marginBottom: '6px', lineHeight: 1.4,
+                              fontSize: '13px', fontWeight: 600, color: 'var(--ink)',
+                              marginBottom: '8px', lineHeight: 1.4,
                               display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
                             }}>
                               {service.title}
                             </p>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                              {sRating ? <span style={{ fontSize: '11px', color: '#f59e0b' }}>★ {sRating} ({service.reviews.length})</span> : <span />}
-                              <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text)' }}>
+                              {sRating
+                                ? <span style={{ fontSize: '11px', color: '#d97706', fontWeight: 600 }}>★ {sRating} ({service.reviews.length})</span>
+                                : <span />}
+                              <span style={{ fontFamily: 'var(--ff-display)', fontSize: '14px', fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.02em' }}>
                                 от {Number(service.price).toLocaleString('ru-RU')} ₽
                               </span>
                             </div>
@@ -209,34 +229,52 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
               </div>
             )}
 
+            {/* Portfolio */}
+            {seller.portfolioUrls.length > 0 && (
+              <div style={{ background: '#fff', borderRadius: '20px', border: '1px solid var(--line)', padding: '24px' }}>
+                <h2 style={{ fontFamily: 'var(--ff-display)', fontSize: '16px', fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.02em', marginBottom: '18px' }}>
+                  Портфолио
+                </h2>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px, 1fr))', gap: '10px' }}>
+                  {seller.portfolioUrls.map((url, i) => (
+                    <a key={i} href={url} target="_blank" rel="noopener noreferrer">
+                      <img src={url} alt={`Портфолио ${i + 1}`} style={{
+                        width: '100%', height: '130px', objectFit: 'cover',
+                        borderRadius: '12px', display: 'block', border: '1px solid var(--line)',
+                      }} />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Reviews */}
             {allReviewsRaw.length > 0 && (
-              <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-out)', padding: '24px' }}>
+              <div style={{ background: '#fff', borderRadius: '20px', border: '1px solid var(--line)', padding: '24px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                  <h2 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text)' }}>
-                    Отзывы ({allReviewsRaw.length})
+                  <h2 style={{ fontFamily: 'var(--ff-display)', fontSize: '16px', fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.02em' }}>
+                    Отзывы · {allReviewsRaw.length}
                   </h2>
                   {rating && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                      <span style={{ fontSize: '28px', fontWeight: 800, color: 'var(--text)' }}>{rating}</span>
-                      <Stars rating={Math.round(Number(rating))} size={16} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ fontFamily: 'var(--ff-display)', fontSize: '26px', fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.04em' }}>{rating}</span>
+                      <Stars rating={Math.round(Number(rating))} size={15} />
                     </div>
                   )}
                 </div>
 
                 {/* Rating distribution */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginBottom: '24px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginBottom: '24px', maxWidth: '320px' }}>
                   {ratingDist.map(({ star, count }) => (
                     <div key={star} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
-                      <span style={{ color: '#6b7280', width: '24px', textAlign: 'right' }}>{star}★</span>
-                      <div style={{ flex: 1, height: '6px', background: '#f3f4f6', borderRadius: '3px', overflow: 'hidden' }}>
+                      <span style={{ color: 'var(--muted)', width: '22px', textAlign: 'right', fontWeight: 600 }}>{star}★</span>
+                      <div style={{ flex: 1, height: '5px', background: 'var(--paper-2)', borderRadius: '3px', overflow: 'hidden' }}>
                         <div style={{
-                          height: '100%', borderRadius: '3px', background: '#f59e0b',
+                          height: '100%', borderRadius: '3px', background: '#d97706',
                           width: allReviewsRaw.length ? `${(count / allReviewsRaw.length) * 100}%` : '0%',
-                          transition: 'width 0.3s',
                         }} />
                       </div>
-                      <span style={{ color: '#9ca3af', width: '20px' }}>{count}</span>
+                      <span style={{ color: 'var(--muted)', width: '18px', fontSize: '11px' }}>{count}</span>
                     </div>
                   ))}
                 </div>
@@ -247,44 +285,47 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
                     return (
                       <div key={review.id} style={{
                         paddingBottom: '20px',
-                        borderBottom: i < allReviewsRaw.length - 1 ? '1px solid var(--border)' : 'none',
+                        borderBottom: i < allReviewsRaw.length - 1 ? '1px solid var(--line)' : 'none',
                       }}>
-                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px', marginBottom: '10px' }}>
+                        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
                           <div style={{
-                            width: '36px', height: '36px', borderRadius: '50%', flexShrink: 0,
-                            background: 'var(--primary)', display: 'flex', alignItems: 'center',
-                            justifyContent: 'center', color: '#fff', fontSize: '12px', fontWeight: 700, overflow: 'hidden',
+                            width: '38px', height: '38px', borderRadius: '50%', flexShrink: 0,
+                            background: 'var(--ink)', display: 'flex', alignItems: 'center',
+                            justifyContent: 'center', fontFamily: 'var(--ff-display)',
+                            color: 'var(--lime)', fontSize: '12px', fontWeight: 800, overflow: 'hidden',
                           }}>
                             {review.author.avatarUrl
                               ? <img src={review.author.avatarUrl} style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="" />
                               : rInitials}
                           </div>
                           <div style={{ flex: 1 }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '4px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '4px', marginBottom: '6px' }}>
                               <div>
-                                <p style={{ fontWeight: 600, fontSize: '14px', color: 'var(--text)' }}>{review.author.name}</p>
+                                <p style={{ fontWeight: 700, fontSize: '13px', color: 'var(--ink)' }}>{review.author.name}</p>
                                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '2px' }}>
                                   <Stars rating={review.rating} />
-                                  <span style={{ fontSize: '11px', color: 'var(--text-muted)' }}>
+                                  <span style={{ fontSize: '11px', color: 'var(--muted)' }}>
                                     {new Date(review.createdAt).toLocaleDateString('ru-RU')}
                                   </span>
                                 </div>
                               </div>
                               <Link href={`/catalog/${review.service.id}`} style={{
-                                fontSize: '11px', color: 'var(--primary)', fontWeight: 600,
+                                fontSize: '11px', color: 'var(--blue)', fontWeight: 600,
                                 textDecoration: 'none', maxWidth: '200px',
                                 overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
                               }}>
                                 {review.service.title} →
                               </Link>
                             </div>
-                            <p style={{ fontSize: '14px', color: 'var(--text)', lineHeight: 1.6, marginTop: '8px' }}>
-                              {review.comment}
-                            </p>
+                            {review.comment && (
+                              <p style={{ fontSize: '13px', color: 'var(--ink)', lineHeight: 1.6, opacity: 0.8 }}>
+                                {review.comment}
+                              </p>
+                            )}
                             {review.sellerReply && (
-                              <div style={{ marginTop: '10px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '8px', padding: '10px 14px' }}>
-                                <p style={{ fontSize: '11px', fontWeight: 700, color: '#16a34a', marginBottom: '4px' }}>Ответ исполнителя</p>
-                                <p style={{ fontSize: '13px', color: '#374151', lineHeight: 1.6 }}>{review.sellerReply}</p>
+                              <div style={{ marginTop: '10px', background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '10px', padding: '10px 14px' }}>
+                                <p style={{ fontSize: '11px', fontWeight: 700, color: '#15803d', marginBottom: '4px' }}>Ответ исполнителя</p>
+                                <p style={{ fontSize: '13px', color: '#166534', lineHeight: 1.6 }}>{review.sellerReply}</p>
                               </div>
                             )}
                           </div>
@@ -296,33 +337,18 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
               </div>
             )}
 
-            {/* Portfolio */}
-            {seller.portfolioUrls.length > 0 && (
-              <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-out)', padding: '24px' }}>
-                <h2 style={{ fontSize: '17px', fontWeight: 700, color: 'var(--text)', marginBottom: '18px' }}>
-                  Портфолио
-                </h2>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '12px' }}>
-                  {seller.portfolioUrls.map((url, i) => (
-                    <a key={i} href={url} target="_blank" rel="noopener noreferrer">
-                      <img src={url} alt={`Портфолио ${i + 1}`} style={{
-                        width: '100%', height: '140px', objectFit: 'cover',
-                        borderRadius: 'var(--radius-sm)', display: 'block',
-                      }} />
-                    </a>
-                  ))}
-                </div>
-              </div>
-            )}
-
             {seller.services.length === 0 && (
-              <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-out)', padding: '60px 32px', textAlign: 'center' }}>
+              <div style={{ background: '#fff', borderRadius: '20px', border: '1px solid var(--line)', padding: '60px 32px', textAlign: 'center' }}>
                 <p style={{ fontSize: '40px', marginBottom: '16px' }}>📦</p>
-                <p style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text)', marginBottom: '8px' }}>У исполнителя пока нет активных услуг</p>
+                <p style={{ fontFamily: 'var(--ff-display)', fontSize: '18px', fontWeight: 800, color: 'var(--ink)', marginBottom: '8px', letterSpacing: '-0.02em' }}>
+                  У исполнителя пока нет активных услуг
+                </p>
                 <Link href="/catalog" style={{
                   display: 'inline-block', marginTop: '16px',
-                  padding: '10px 24px', borderRadius: 'var(--radius-sm)',
-                  background: 'var(--primary)', color: '#fff', fontWeight: 600, fontSize: '14px',
+                  padding: '10px 24px', borderRadius: '10px',
+                  background: 'var(--ink)', color: 'var(--lime)',
+                  fontFamily: 'var(--ff-display)', fontWeight: 800, fontSize: '13px',
+                  textDecoration: 'none',
                 }}>
                   Вернуться в каталог
                 </Link>
@@ -331,39 +357,62 @@ export default async function SellerPage({ params }: { params: Promise<{ id: str
           </div>
 
           {/* Right sidebar */}
-          <div style={{ position: 'sticky', top: '80px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', boxShadow: 'var(--shadow-out)', padding: '20px' }}>
-              <p style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: '14px' }}>
-                Контакт
+          <div style={{ position: 'sticky', top: '80px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+
+            {/* Contact */}
+            <div style={{ background: '#fff', borderRadius: '20px', border: '1px solid var(--line)', padding: '20px' }}>
+              <p style={{ fontFamily: 'var(--ff-display)', fontWeight: 800, fontSize: '14px', color: 'var(--ink)', letterSpacing: '-0.02em', marginBottom: '10px' }}>
+                Связаться
               </p>
-              <p style={{ fontSize: '14px', color: 'var(--text)', lineHeight: 1.6, marginBottom: '16px' }}>
-                Есть вопросы или хотите обсудить сотрудничество — напишите исполнителю напрямую через любую его услугу.
+              <p style={{ fontSize: '13px', color: 'var(--muted)', lineHeight: 1.6, marginBottom: '14px' }}>
+                Выберите услугу и напишите исполнителю — он ответит в течение 24 часов
               </p>
               {seller.services.length > 0 && (
                 <Link href={`/catalog/${seller.services[0].id}`} style={{
                   display: 'block', textAlign: 'center', padding: '11px',
-                  borderRadius: 'var(--radius-sm)', background: 'var(--primary)',
-                  color: '#fff', fontSize: '14px', fontWeight: 600, textDecoration: 'none',
-                  boxShadow: '4px 4px 12px rgba(249,115,22,0.3)',
+                  borderRadius: '10px', background: 'var(--ink)',
+                  color: 'var(--lime)', fontFamily: 'var(--ff-display)',
+                  fontSize: '13px', fontWeight: 800, textDecoration: 'none',
+                  letterSpacing: '-0.01em',
                 }}>
-                  Написать исполнителю
+                  Написать исполнителю →
                 </Link>
               )}
             </div>
 
-            {/* INN badge */}
+            {/* Verified badge */}
             {seller.innVerified && (
-              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 'var(--radius)', padding: '16px 18px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: '16px', padding: '16px 18px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px' }}>
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#15803d" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                     <polyline points="9 12 11 14 15 10"/>
                   </svg>
-                  <p style={{ fontSize: '13px', fontWeight: 700, color: '#16a34a' }}>Верифицированный исполнитель</p>
+                  <p style={{ fontSize: '13px', fontWeight: 700, color: '#15803d' }}>Верифицированный</p>
                 </div>
                 <p style={{ fontSize: '12px', color: '#166534', lineHeight: 1.5 }}>
-                  ИНН и юридические данные проверены командой Unit One
+                  ИНН и юридические данные проверены платформой
                 </p>
+              </div>
+            )}
+
+            {/* Quick stats */}
+            {(allReviewsRaw.length > 0 || seller.services.length > 0) && (
+              <div style={{ background: '#fff', borderRadius: '16px', border: '1px solid var(--line)', padding: '16px 18px' }}>
+                {[
+                  { lbl: 'Услуг', val: String(seller.services.length) },
+                  { lbl: 'Отзывов', val: String(allReviewsRaw.length) },
+                  ...(rating ? [{ lbl: 'Рейтинг', val: `★ ${rating}` }] : []),
+                ].map(({ lbl, val }, i, arr) => (
+                  <div key={lbl} style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                    padding: '8px 0',
+                    borderBottom: i < arr.length - 1 ? '1px solid var(--line)' : 'none',
+                  }}>
+                    <span style={{ fontSize: '12px', color: 'var(--muted)', fontWeight: 600 }}>{lbl}</span>
+                    <span style={{ fontFamily: 'var(--ff-display)', fontSize: '15px', fontWeight: 800, color: 'var(--ink)', letterSpacing: '-0.02em' }}>{val}</span>
+                  </div>
+                ))}
               </div>
             )}
           </div>

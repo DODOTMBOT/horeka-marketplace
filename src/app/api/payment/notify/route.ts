@@ -17,7 +17,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid token' }, { status: 400 })
   }
 
-  const orderId = body.OrderId as string
+  // OrderId format: "dbOrderId_timestamp" — extract the real DB id
+  const tbankOrderId = body.OrderId as string
+  const orderId = tbankOrderId.includes('_') ? tbankOrderId.split('_').slice(0, -1).join('_') : tbankOrderId
   const status = body.Status as string
   const success = body.Success as boolean
 
@@ -34,9 +36,19 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true })
   }
 
+  const now = new Date()
   await prisma.order.update({
     where: { id: orderId },
-    data: { paid: true, status: 'ACTIVE' },
+    data: { paid: true, status: 'ACTIVE', paidAt: now },
+  })
+
+  await prisma.orderLog.create({
+    data: {
+      orderId,
+      fromStatus: 'PENDING',
+      toStatus: 'ACTIVE',
+      note: `Оплата подтверждена (PaymentId: ${body.PaymentId})`,
+    },
   })
 
   await prisma.notification.create({

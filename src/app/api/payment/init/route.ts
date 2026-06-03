@@ -30,8 +30,11 @@ export async function POST(req: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? 'https://unit-one.ru'
     const amountKopecks = Math.round(Number(order.price) * 100)
 
+    // Append timestamp to avoid "order_id already exists" on retry
+    const tbankOrderId = `${order.id}_${Date.now()}`
+
     const result = await initPayment({
-      orderId: order.id,
+      orderId: tbankOrderId,
       amountKopecks,
       description: `Оплата услуги: ${order.service.title.slice(0, 140)}`,
       successUrl: `${baseUrl}/dashboard/orders/${order.id}?payment=success`,

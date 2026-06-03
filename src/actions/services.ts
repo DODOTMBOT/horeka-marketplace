@@ -265,7 +265,7 @@ export async function getSellerProfile(id: string) {
     where: { id },
     select: {
       id: true, name: true, avatarUrl: true, innVerified: true,
-      companyName: true, bio: true, portfolioUrls: true, createdAt: true,
+      companyName: true, bio: true, portfolioUrls: true, createdAt: true, businessType: true,
       services: {
         where: { status: 'ACTIVE' },
         include: {

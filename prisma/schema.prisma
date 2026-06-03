@@ -29,10 +29,23 @@ enum ServiceStatus {
 
 enum OrderStatus {
   PENDING
-  ACTIVE
+  ACTIVE      // paid, waiting for seller to start (48h response window)
+  IN_PROGRESS // seller started work (48h auto-complete timer)
   COMPLETED
   CANCELLED
   DISPUTED
+}
+
+enum DisputeReason {
+  NO_CONTACT
+  SERVICE_NOT_PROVIDED
+  SELLER_DISAPPEARED
+}
+
+enum DisputeStatus {
+  OPEN
+  CONFIRMED
+  REJECTED
 }
 
 // ─── USERS ─────────────────────────────────────────────────────────────────
@@ -78,6 +91,8 @@ model User {
   conversations         ConversationParticipant[]
   sentMessages          Message[]                @relation("MessageSender")
   activityLogs          ActivityLog[]
+  openedDisputes        Dispute[]                @relation("DisputeOpener")
+  resolvedDisputes      Dispute[]                @relation("DisputeResolver")
 }
 
 // ─── CATEGORIES ────────────────────────────────────────────────────────────
@@ -143,10 +158,17 @@ model Order {
   paymentId String?
   paid      Boolean @default(false)
 
+  paidAt          DateTime?
+  workStartedAt   DateTime?
+  completedAt     DateTime?
+  disputeOpenedAt DateTime?
+
   sellerPaid   Boolean   @default(false)
   sellerPaidAt DateTime?
 
-  review Review?
+  review   Review?
+  logs     OrderLog[]
+  dispute  Dispute?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -246,6 +268,53 @@ model SiteConfig {
   key       String   @id
   value     Json
   updatedAt DateTime @updatedAt
+}
+
+// ─── ORDER LOGS ────────────────────────────────────────────────────────────
+
+model OrderLog {
+  id         String      @id @default(cuid())
+  orderId    String
+  order      Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  userId     String?
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  note       String?
+  createdAt  DateTime    @default(now())
+
+  @@index([orderId])
+}
+
+// ─── DISPUTES ──────────────────────────────────────────────────────────────
+
+model Dispute {
+  id           String        @id @default(cuid())
+  orderId      String        @unique
+  order        Order         @relation(fields: [orderId], references: [id])
+  openedById   String
+  openedBy     User          @relation("DisputeOpener", fields: [openedById], references: [id])
+  reason       DisputeReason
+  description  String        @db.Text
+  status       DisputeStatus @default(OPEN)
+  resolution   String?       @db.Text
+  resolvedById String?
+  resolvedBy   User?         @relation("DisputeResolver", fields: [resolvedById], references: [id])
+  resolvedAt   DateTime?
+  files        DisputeFile[]
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@index([status])
+}
+
+model DisputeFile {
+  id        String   @id @default(cuid())
+  disputeId String
+  dispute   Dispute  @relation(fields: [disputeId], references: [id], onDelete: Cascade)
+  url       String
+  name      String
+  size      Int
+  createdAt DateTime @default(now())
 }
 
 // ─── ACTIVITY LOG ──────────────────────────────────────────────────────────
